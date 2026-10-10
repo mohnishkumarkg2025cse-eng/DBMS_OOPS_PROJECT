@@ -1,58 +1,37 @@
-# RuleWeaver - Decision Engine & Persistence Layer
+# RuleWeaver — Dynamic Rule Engine & Management System
 
-RuleWeaver is a Java-based platform designed for managing policy rules, applicant evaluations, and historic policy versions using MongoDB Atlas. It enforces strict JSON schema validation, unique compound indexing, and clean repository-based data access.
-
----
-
-## 🛠️ Tech Stack & Architecture
-
-- **Language:** Java 17
-- **Database:** MongoDB Atlas (MongoDB Sync Driver `5.12.0`)
-- **Build & Dependency Management:** Apache Maven
-- **Testing:** JUnit 5
+**Repository:** `DBMS_OOPS_PROJECT`  
+**Root Package:** `com.ruleweaver`  
+**Tech Stack:** Java 17+, Maven, MongoDB, JavaFX, JUnit 5  
 
 ---
 
-## 📁 Repository Structure & Data Contracts
+## 📖 About The Project
 
-### Database Collections & Fields
+**RuleWeaver** is an Object-Oriented Database Application designed to automate complex eligibility assessment, rule management, and policy enforcement across dynamic datasets.
 
-1. **`applicants`**
-   - `_id`: String (e.g., `"APP001"`)
-   - `name`: String
-   - `gpa`: Double
-
-2. **`policies`**
-   - `policyId`: String (e.g., `"POLICY001"`)
-   - `name`: String
-
-3. **`policy_versions`**
-   - `policyId`: String
-   - `version`: Integer *(Unique Compound Index enforced on `policyId` + `version`)*
-   - `minScore`: Integer / Rule conditions
-
-4. **`evaluation_results`**
-   - `applicantId`: String
-   - `policyId`: String
-   - `policyVersion`: Integer
-   - `decision`: String (e.g., `"ELIGIBLE"`, `"INELIGIBLE"`)
-   - `reasons`: List of Strings
+In traditional software systems, business rules (such as loan approvals, grant eligibility, or insurance qualification) are hardcoded into application logic. RuleWeaver solves this by decoupling business rules from code logic through a dynamic rule engine. Policies and evaluation conditions are stored dynamically in MongoDB and evaluated at runtime against incoming applicant data.
 
 ---
 
-## 🚀 Getting Started
+## ✨ Key Features
 
-### Prerequisites
-- JDK 17 or higher
-- Apache Maven
-- MongoDB Atlas cluster connection string
+* **Dynamic Policy Engine:** Define, edit, and evaluate complex conditional logic without re-compiling or re-deploying application code.
+* **NoSQL Persistence Layer:** Scalable document-based storage for flexible applicant structures, policy rules, and evaluation histories using MongoDB.
+* **Modular Layered Architecture:** Strict separation of concerns between presentation (JavaFX), business logic (Services/Engine), domain models, and data access (Repositories).
+* **Robust Domain Model:** Built using clean Object-Oriented Software Engineering principles (Encapsulation, Polymorphism, Abstraction, and Single Responsibility).
+* **Automated Eligibility Processing:** Evaluates applicants against active policies and outputs pass/fail statuses with granular rule trace logs.
 
-### Environment Setup
-Set your MongoDB connection string in your environment variables before running:
+---
 
-```bash
-# On Linux/macOS
-export MONGODB_URI="your_mongodb_atlas_connection_string"
+## 🏗️ System Architecture
 
-# On Windows (PowerShell)
-$env:MONGODB_URI="your_mongodb_atlas_connection_string"# DBMSOOPS-PROJECT
+The project strictly follows standard Maven directory layout and Java package hierarchy:
+
+```text
+com.ruleweaver
+├── config/        # MongoDB client instantiation and configuration settings
+├── repository/    # Data Access Objects (DAO) handling CRUD operations on MongoDB
+├── model/         # Core business domain entities (Applicant, Policy, Condition, etc.)
+├── service/       # Business logic operations, rule processing, and domain services
+└── Main.java      # Application bootstrap & smoke-testing entry point
