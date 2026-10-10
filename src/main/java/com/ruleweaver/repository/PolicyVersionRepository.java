@@ -1,4 +1,3 @@
-
 package com.ruleweaver.repository;
 
 import com.mongodb.client.MongoCollection;
@@ -6,7 +5,6 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
-import com.ruleweaver.config.MongoConfig;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -16,9 +14,9 @@ public class PolicyVersionRepository {
 
     private final MongoCollection<Document> collection;
 
-    public PolicyVersionRepository() {
-        MongoDatabase db = MongoConfig.getDatabase();
-        this.collection = db.getCollection("policy_versions");
+    // This constructor must match what you pass in SeedData and Tests
+    public PolicyVersionRepository(MongoDatabase database) {
+        this.collection = database.getCollection("policy_versions");
 
         // Prevent duplicate version numbers for the same policy
         createIndexes();
@@ -26,9 +24,13 @@ public class PolicyVersionRepository {
 
     // Create database indexes
     private void createIndexes() {
-        collection.createIndex(
-                Indexes.ascending("policyId", "version"),
-                new IndexOptions().unique(true));
+        try {
+            collection.createIndex(
+                    Indexes.ascending("policyId", "version"),
+                    new IndexOptions().unique(true));
+        } catch (Exception e) {
+            // Index might already exist
+        }
     }
 
     // Save a new policy version

@@ -3,7 +3,6 @@ package com.ruleweaver.repository;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.ruleweaver.config.MongoConfig;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -12,9 +11,9 @@ import java.util.List;
 public class EvaluationRepository {
     private final MongoCollection<Document> collection;
 
-    public EvaluationRepository() {
-        MongoDatabase db = MongoConfig.getDatabase();
-        this.collection = db.getCollection("evaluation_results");
+    // Constructor to accept MongoDatabase
+    public EvaluationRepository(MongoDatabase database) {
+        this.collection = database.getCollection("evaluations");
     }
 
     // Save evaluation result
