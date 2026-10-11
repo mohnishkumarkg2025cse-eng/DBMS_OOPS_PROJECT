@@ -1,0 +1,960 @@
+/* ==========================================================================
+   RuleWeaver X — Premium Dark Design System
+   ========================================================================== */
+
+.root {
+    /* Color Palette Tokens */
+    -color-bg-start: #11111b;
+    -color-bg-end: #1e1e2e;
+    -color-card: #232336;
+    -color-card-border: rgba(255, 255, 255, 0.08);
+    -color-card-hover: #2c2c42;
+    -color-elevated: #28283e;
+    -color-border: #3b3b52;
+    -color-border-subtle: rgba(255, 255, 255, 0.05);
+
+    -color-text-primary: #e6e9ff;
+    -color-text-secondary: #9aa0c3;
+    -color-text-disabled: #5c607f;
+    -color-text-muted: #707599;
+
+    -color-accent: #89b4fa;
+    -color-accent-end: #b4befe;
+    -color-accent-glow: rgba(137, 180, 250, 0.35);
+    -color-accent-tint: rgba(137, 180, 250, 0.12);
+
+    -color-success: #a6e3a1;
+    -color-success-bg: rgba(166, 227, 161, 0.14);
+    -color-success-border: rgba(166, 227, 161, 0.30);
+
+    -color-danger: #f38ba8;
+    -color-danger-bg: rgba(243, 139, 168, 0.14);
+    -color-danger-border: rgba(243, 139, 168, 0.30);
+
+    -color-warning: #f9e2af;
+    -color-warning-bg: rgba(249, 226, 175, 0.14);
+    -color-warning-border: rgba(249, 226, 175, 0.30);
+
+    -color-info: #74c7ec;
+    -color-info-bg: rgba(116, 199, 236, 0.14);
+    -color-info-border: rgba(116, 199, 236, 0.30);
+
+    -color-input-bg: #181825;
+    -color-input-focus: #1f1f33;
+
+    /* Global Typography */
+    -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+    -fx-font-size: 13px;
+    -fx-text-fill: -color-text-primary;
+    /* JavaFX controls otherwise inherit Modena's light defaults. */
+    -fx-base: #232336;
+    -fx-background: #232336;
+    -fx-control-inner-background: #232336;
+    -fx-accent: #89b4fa;
+    -fx-background-color: linear-gradient(to bottom, -color-bg-start, -color-bg-end);
+}
+
+/* Base Window Shell */
+.app-shell {
+    -fx-background-color: linear-gradient(to bottom, -color-bg-start, -color-bg-end);
+}
+
+/* ==========================================================================
+   Typography Utilities
+   ========================================================================== */
+
+.page-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.page-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.section-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.caption-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.kpi-value {
+    -fx-font-size: 34px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.kpi-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.kpi-subtext {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-muted;
+}
+
+/* ==========================================================================
+   Cards & Surfaces (Glassmorphic illusion)
+   ========================================================================== */
+
+.card {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 16px;
+    -fx-border-color: -color-card-border;
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-padding: 22px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.35), 14, 0, 0, 6);
+}
+
+.card-hoverable:hover {
+    -fx-background-color: -color-card-hover;
+    -fx-border-color: rgba(137, 180, 250, 0.25);
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.45), 20, 0, 0, 8);
+}
+
+.card-elevated {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 16px;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-padding: 24px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.50), 22, 0, 0, 10);
+}
+
+/* ==========================================================================
+   Sidebar Navigation (240px)
+   ========================================================================== */
+
+.sidebar {
+    -fx-pref-width: 240px;
+    -fx-min-width: 240px;
+    -fx-max-width: 240px;
+    -fx-background-color: #151522;
+    -fx-border-color: transparent -color-border-subtle transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+    -fx-padding: 20px 14px 20px 14px;
+}
+
+.sidebar-logo-block {
+    -fx-padding: 8px 10px 24px 10px;
+}
+
+.sidebar-logo-title {
+    -fx-font-size: 19px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-text-primary;
+}
+
+.sidebar-logo-accent {
+    -fx-font-size: 19px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-accent;
+}
+
+.sidebar-logo-subtitle {
+    -fx-font-size: 10px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-muted;
+}
+
+.nav-item {
+    -fx-pref-height: 44px;
+    -fx-min-height: 44px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 10px;
+    -fx-padding: 0 14px 0 14px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.nav-item:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item-active {
+    -fx-background-color: -color-accent-tint;
+    -fx-border-color: transparent transparent transparent -color-accent;
+    -fx-border-width: 0 0 0 3px;
+    -fx-border-radius: 2px 10px 10px 2px;
+}
+
+.nav-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.nav-label-active {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-accent;
+}
+
+.nav-icon {
+    -fx-fill: -color-text-secondary;
+}
+
+.nav-icon-active {
+    -fx-fill: -color-accent;
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 8, 0, 0, 0);
+}
+
+.mongo-status-chip {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    -fx-padding: 6px 12px 6px 12px;
+}
+
+.mongo-status-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.status-dot-online {
+    -fx-fill: -color-success;
+    -fx-effect: dropshadow(three-pass-box, rgba(166, 227, 161, 0.6), 6, 0, 0, 0);
+}
+
+.status-dot-offline {
+    -fx-fill: -color-danger;
+    -fx-effect: dropshadow(three-pass-box, rgba(243, 139, 168, 0.6), 6, 0, 0, 0);
+}
+
+/* ==========================================================================
+   Header Bar
+   ========================================================================== */
+
+.app-header {
+    -fx-pref-height: 60px;
+    -fx-min-height: 60px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-border-subtle transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 0 32px 0 32px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.app-header-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.button {
+    -fx-font-family: "Inter", "Segoe UI", sans-serif;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-background-radius: 10px;
+    -fx-padding: 9px 18px 9px 18px;
+    -fx-cursor: hand;
+    -fx-text-fill: -color-text-primary;
+}
+
+.btn-primary {
+    -fx-background-color: linear-gradient(to right, -color-accent, -color-accent-end);
+    -fx-text-fill: #11111b;
+    -fx-font-weight: 700;
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 12, 0, 0, 3);
+}
+
+.btn-primary:hover {
+    -fx-background-color: linear-gradient(to right, #9bbffd, #c4cdff);
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 18, 0, 0, 5);
+}
+
+.btn-primary:pressed {
+    -fx-background-color: #79a5ea;
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 6, 0, 0, 1);
+}
+
+.btn-secondary {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-text-fill: -color-text-primary;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-border-color: -color-accent;
+}
+
+.btn-secondary:pressed {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+}
+
+.btn-danger {
+    -fx-background-color: -color-danger-bg;
+    -fx-text-fill: -color-danger;
+    -fx-border-color: -color-danger-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.btn-danger:hover {
+    -fx-background-color: rgba(243, 139, 168, 0.24);
+    -fx-border-color: -color-danger;
+}
+
+.btn-danger:pressed {
+    -fx-background-color: rgba(243, 139, 168, 0.10);
+}
+
+.btn-success {
+    -fx-background-color: -color-success-bg;
+    -fx-text-fill: -color-success;
+    -fx-border-color: -color-success-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.btn-success:hover {
+    -fx-background-color: rgba(166, 227, 161, 0.24);
+    -fx-border-color: -color-success;
+}
+
+.btn-icon {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-padding: 8px;
+    -fx-cursor: hand;
+}
+
+.btn-icon:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-icon:pressed {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+}
+
+.button:disabled {
+    -fx-opacity: 0.45;
+    -fx-cursor: default;
+}
+
+/* ==========================================================================
+   Inputs, TextFields, ComboBoxes
+   ========================================================================== */
+
+.text-field, .text-area {
+    -fx-background-color: -color-input-bg;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-text-fill: -color-text-primary;
+    -fx-prompt-text-fill: -color-text-disabled;
+    -fx-padding: 10px 14px 10px 14px;
+    -fx-font-size: 13px;
+}
+
+.text-field:focused, .text-area:focused {
+    -fx-background-color: -color-input-focus;
+    -fx-border-color: -color-accent;
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 8, 0, 0, 0);
+}
+
+.input-error {
+    -fx-border-color: -color-danger;
+    -fx-effect: dropshadow(three-pass-box, rgba(243, 139, 168, 0.4), 6, 0, 0, 0);
+}
+
+.error-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-danger;
+    -fx-font-weight: 500;
+}
+
+.combo-box {
+    -fx-background-color: -color-input-bg;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 4px 8px 4px 12px;
+}
+
+.combo-box:focused {
+    -fx-border-color: -color-accent;
+    -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 6, 0, 0, 0);
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -color-text-primary;
+    -fx-font-size: 13px;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 16, 0, 0, 6);
+    -fx-padding: 4px;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-primary;
+    -fx-padding: 8px 12px 8px 12px;
+    -fx-background-radius: 6px;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: rgba(137, 180, 250, 0.15);
+    -fx-text-fill: -color-accent;
+}
+
+.combo-box-popup .list-cell:selected {
+    -fx-background-color: rgba(137, 180, 250, 0.16);
+    -fx-border-color: transparent transparent transparent #89b4fa;
+    -fx-border-width: 0 0 0 3px;
+    -fx-text-fill: -color-text-primary;
+    -fx-font-weight: 700;
+}
+
+/* ========================================================================== 
+   Lists, popup lists, and scrolling surfaces
+   ========================================================================== */
+
+.list-view {
+    -fx-background-color: #232336;
+    -fx-control-inner-background: #232336;
+    -fx-border-color: #3b3b52;
+    -fx-border-width: 1px;
+    -fx-padding: 2px;
+}
+
+.list-view .virtual-flow .clipped-container .sheet,
+.list-view .virtual-flow .corner {
+    -fx-background-color: #232336;
+}
+
+.list-cell {
+    -fx-background-color: #232336;
+    -fx-text-fill: #e6e9ff;
+    -fx-padding: 9px 12px;
+}
+
+.list-cell:odd {
+    -fx-background-color: #28283e;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #2c2c42;
+    -fx-text-fill: #e6e9ff;
+}
+
+.list-cell:filled:selected,
+.list-cell:filled:selected:focused {
+    -fx-background-color: rgba(137, 180, 250, 0.16);
+    -fx-border-color: transparent transparent transparent #89b4fa;
+    -fx-border-width: 0 0 0 3px;
+    -fx-text-fill: #e6e9ff;
+}
+
+.list-cell:empty {
+    -fx-background-color: #232336;
+    -fx-border-color: transparent;
+}
+
+.scroll-pane {
+    -fx-background-color: #232336;
+    -fx-border-color: #3b3b52;
+    -fx-border-width: 1px;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: #232336;
+}
+
+.scroll-pane > .corner {
+    -fx-background-color: #232336;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #3b3b52;
+}
+
+.scroll-bar .thumb:hover,
+.scroll-bar .thumb:pressed {
+    -fx-background-color: #89b4fa;
+}
+
+.scroll-bar .track {
+    -fx-background-color: #181825;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #232336;
+    -fx-control-inner-background: #232336;
+}
+
+/* Other Modena controls that otherwise expose a light inner surface. */
+.spinner, .date-picker, .tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: #232336;
+    -fx-border-color: #3b3b52;
+}
+
+.spinner .text-field, .date-picker .text-field {
+    -fx-background-color: #181825;
+    -fx-text-fill: #e6e9ff;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: #232336;
+    -fx-border-color: #3b3b52;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: #2c2c42;
+    -fx-border-color: transparent transparent #89b4fa transparent;
+    -fx-border-width: 0 0 3px 0;
+}
+
+.tab-pane .tab-label, .tooltip {
+    -fx-text-fill: #e6e9ff;
+}
+
+.tooltip {
+    -fx-background-color: #232336;
+    -fx-border-color: #3b3b52;
+    -fx-border-width: 1px;
+}
+
+/* ==========================================================================
+   TableView (Dark, Sleek, No vertical grid lines)
+   ========================================================================== */
+
+.table-view {
+    -fx-background-color: transparent;
+    -fx-table-cell-border-color: transparent;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 12px;
+    -fx-border-width: 1px;
+    -fx-background-radius: 12px;
+    -fx-padding: 0;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #1a1a2b;
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 44px;
+    -fx-padding: 10px 14px 10px 14px;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.table-row-cell {
+    -fx-background-color: transparent;
+    -fx-cell-size: 52px;
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.03) transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 0 10px 0 10px;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: rgba(255, 255, 255, 0.015);
+}
+
+.table-row-cell:hover {
+    -fx-background-color: rgba(137, 180, 250, 0.06);
+}
+
+.table-row-cell:selected {
+    -fx-background-color: rgba(137, 180, 250, 0.12);
+}
+
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: -color-text-primary;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: -color-text-primary;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 8px 0 8px;
+    -fx-font-size: 13px;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 13px;
+}
+
+/* Changed Row Highlights for Comparison */
+.row-changed-lost {
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.03) -color-danger;
+    -fx-border-width: 0 0 1px 3px;
+    -fx-background-color: rgba(243, 139, 168, 0.06);
+}
+
+.row-changed-gained {
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.03) -color-success;
+    -fx-border-width: 0 0 1px 3px;
+    -fx-background-color: rgba(166, 227, 161, 0.06);
+}
+
+/* ==========================================================================
+   Pill Badges & Status Indicators
+   ========================================================================== */
+
+.badge-pill {
+    -fx-background-radius: 20px;
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    -fx-padding: 4px 10px 4px 10px;
+    -fx-alignment: CENTER;
+}
+
+.badge-pass {
+    -fx-background-color: -color-success-bg;
+    -fx-border-color: -color-success-border;
+}
+
+.badge-pass-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-success;
+}
+
+.badge-fail {
+    -fx-background-color: -color-danger-bg;
+    -fx-border-color: -color-danger-border;
+}
+
+.badge-fail-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-danger;
+}
+
+.badge-info {
+    -fx-background-color: -color-info-bg;
+    -fx-border-color: -color-info-border;
+}
+
+.badge-info-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-info;
+}
+
+.badge-warning {
+    -fx-background-color: -color-warning-bg;
+    -fx-border-color: -color-warning-border;
+}
+
+.badge-warning-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-warning;
+}
+
+/* Skill Chip */
+.skill-chip {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-background-radius: 12px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 12px;
+    -fx-border-width: 1px;
+    -fx-padding: 3px 8px 3px 8px;
+}
+
+.skill-chip-text {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+/* Avatar Initials */
+.avatar-circle {
+    -fx-background-radius: 50%;
+    -fx-border-radius: 50%;
+    -fx-alignment: CENTER;
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-max-width: 34px;
+    -fx-max-height: 34px;
+}
+
+.avatar-text {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+/* ==========================================================================
+   Toasts & Notification Overlays
+   ========================================================================== */
+
+.toast-container {
+    -fx-padding: 16px;
+    -fx-alignment: BOTTOM_RIGHT;
+}
+
+.toast {
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-border-width: 1px;
+    -fx-padding: 14px 20px 14px 20px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 18, 0, 0, 6);
+    -fx-min-width: 300px;
+    -fx-max-width: 440px;
+}
+
+.toast-success {
+    -fx-background-color: #1a2924;
+    -fx-border-color: -color-success-border;
+}
+
+.toast-error {
+    -fx-background-color: #2b1b24;
+    -fx-border-color: -color-danger-border;
+}
+
+.toast-info {
+    -fx-background-color: #1a2434;
+    -fx-border-color: -color-info-border;
+}
+
+.toast-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.toast-message {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+/* ==========================================================================
+   Dialogs & Modals
+   ========================================================================== */
+
+.modal-backdrop {
+    -fx-background-color: rgba(10, 10, 18, 0.70);
+    -fx-alignment: CENTER;
+}
+
+.modal-window {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 18px;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 18px;
+    -fx-border-width: 1px;
+    -fx-padding: 28px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.65), 30, 0, 0, 12);
+}
+
+.dialog-pane {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 16px;
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-padding: 20px;
+}
+
+.dialog-pane .content.label {
+    -fx-text-fill: -color-text-primary;
+    -fx-font-size: 13px;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: transparent;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: -color-text-primary;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+}
+
+/* ==========================================================================
+   Charts Styling
+   ========================================================================== */
+
+.chart {
+    -fx-padding: 10px;
+}
+
+.chart-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.chart-legend {
+    -fx-background-color: transparent;
+    -fx-padding: 8px;
+}
+
+.chart-legend-item {
+    -fx-text-fill: -color-text-secondary;
+    -fx-font-size: 12px;
+}
+
+.axis {
+    -fx-tick-label-fill: -color-text-muted;
+    -fx-tick-label-font-size: 11px;
+}
+
+.axis:left {
+    -fx-border-color: transparent -color-border transparent transparent;
+}
+
+.axis:bottom {
+    -fx-border-color: -color-border transparent transparent transparent;
+}
+
+/* Chart Colors */
+.default-color0.chart-pie {
+    -fx-pie-color: -color-success;
+}
+
+.default-color1.chart-pie {
+    -fx-pie-color: -color-danger;
+}
+
+.default-color2.chart-pie {
+    -fx-pie-color: -color-accent;
+}
+
+.default-color0.chart-bar {
+    -fx-bar-fill: -color-success;
+}
+
+.default-color1.chart-bar {
+    -fx-bar-fill: -color-danger;
+}
+
+/* ==========================================================================
+   ScrollBars
+   ========================================================================== */
+
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 10px;
+}
+
+.scroll-bar:horizontal {
+    -fx-background-color: transparent;
+    -fx-pref-height: 10px;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-background-radius: 5px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.22);
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-pref-height: 0;
+    -fx-pref-width: 0;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+/* ==========================================================================
+   Progress Bar
+   ========================================================================== */
+
+.progress-bar {
+    -fx-pref-height: 6px;
+}
+
+.progress-bar .track {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 4px;
+}
+
+.progress-bar .bar {
+    -fx-background-color: linear-gradient(to right, -color-accent, -color-accent-end);
+    -fx-background-radius: 4px;
+}
+
+.progress-bar-success .bar {
+    -fx-background-color: -color-success;
+}
+
+.progress-bar-danger .bar {
+    -fx-background-color: -color-danger;
+}
+
+/* Condition Builder Dynamic Rows */
+.condition-builder-row {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px 14px 12px 14px;
+}
+
+.condition-builder-row:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-border-color: rgba(137, 180, 250, 0.2);
+}
+
+/* Keep the master policy list visually contained; cells ellipsize their labels. */
+.policy-list .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+
+/* These appear after the legacy scrollbar rules so Midnight Mauve wins. */
+.scroll-bar .thumb {
+    -fx-background-color: #3b3b52;
+}
+
+.scroll-bar .thumb:hover,
+.scroll-bar .thumb:pressed {
+    -fx-background-color: #89b4fa;
+}
+
+.scroll-bar .track {
+    -fx-background-color: #181825;
+}

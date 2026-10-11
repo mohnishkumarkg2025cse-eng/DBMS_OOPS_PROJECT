@@ -6,83 +6,131 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Policy = a named set of eligibility rules, e.g. "Internship Eligibility".
- * It does not hold conditions itself; it holds numbered PolicyVersions, and each version
- * holds the conditions (composition: Policy HAS-MANY PolicyVersion, PolicyVersion HAS-MANY Condition).
- *
- * PDF fields: id, name, list of PolicyVersions.
- * Version numbers always run 1, 2, 3 ... with no gaps; addVersion() enforces that.
+ * Represents a business policy (e.g., "Internship Eligibility", "Merit Scholarship Policy").
+ * Demonstrates Composition by owning a collection of versioned condition snapshots (PolicyVersion).
  */
 public class Policy {
+    private String id;
+    private String name;
+    private String description;
+    private String category = "Other";
+    private int activeVersionNumber;
+    private boolean archived;
+    private List<PolicyVersion> versions;
 
-    private final String id;
-    private final String name;
-    private final List<PolicyVersion> versions = new ArrayList<>();
-
-    public Policy(String id, String name) {
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("Policy id must not be blank");
-        }
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Policy name must not be blank");
-        }
-        this.id = id;
-        this.name = name.trim();
+    public Policy() {
+        this.versions = new ArrayList<>();
     }
 
-    public String getId() { return id; }
+    public Policy(String id, String name, String description) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.versions = new ArrayList<>();
+    }
 
-    public String getName() { return name; }
+    public String getId() {
+        return id;
+    }
 
-    /** Read-only view, oldest first. */
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getCategory() {
+        return category == null || category.isBlank() ? "Other" : category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category == null || category.isBlank() ? "Other" : category;
+    }
+
+    public int getActiveVersionNumber() {
+        if (activeVersionNumber > 0 && getVersion(activeVersionNumber).isPresent()) {
+            return activeVersionNumber;
+        }
+        return getLatestVersion().map(PolicyVersion::getVersionNumber).orElse(0);
+    }
+
+    public void setActiveVersionNumber(int activeVersionNumber) {
+        this.activeVersionNumber = activeVersionNumber;
+    }
+
+    public int getPersistedActiveVersionNumber() {
+        return activeVersionNumber;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
     public List<PolicyVersion> getVersions() {
         return Collections.unmodifiableList(versions);
     }
 
-    /** The number the next added version must have (1 for a brand-new policy). */
-    public int getNextVersionNumber() {
-        return versions.size() + 1;
+    public void setVersions(List<PolicyVersion> versions) {
+        this.versions = versions != null ? new ArrayList<>(versions) : new ArrayList<>();
     }
 
-    /**
-     * Appends a version. The version must belong to this policy and carry exactly the next
-     * number. Nothing in this class lets you replace or edit a version that was already added.
-     */
     public void addVersion(PolicyVersion version) {
-        if (version == null) {
-            throw new IllegalArgumentException("version must not be null");
+        if (version != null) {
+            version.setPolicyId(this.id);
+            this.versions.add(version);
         }
-        if (!id.equals(version.getPolicyId())) {
-            throw new IllegalArgumentException("Version belongs to policy " + version.getPolicyId()
-                    + ", not " + id);
-        }
-        if (version.getVersionNumber() != getNextVersionNumber()) {
-            throw new IllegalArgumentException("Expected version number " + getNextVersionNumber()
-                    + " but got " + version.getVersionNumber());
-        }
-        versions.add(version);
     }
 
-    /** Finds a version by number; empty if it does not exist. */
-    public Optional<PolicyVersion> findVersion(int versionNumber) {
-        for (PolicyVersion v : versions) {
-            if (v.getVersionNumber() == versionNumber) {
-                return Optional.of(v);
-            }
-        }
-        return Optional.empty();
+    public Optional<PolicyVersion> getVersion(int versionNumber) {
+        return versions.stream()
+                .filter(v -> v.getVersionNumber() == versionNumber)
+                .findFirst();
     }
 
-    /** The highest-numbered version; empty if the policy has no versions yet. */
     public Optional<PolicyVersion> getLatestVersion() {
-        if (versions.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(versions.get(versions.size() - 1));
+        return versions.stream()
+                .max((v1, v2) -> Integer.compare(v1.getVersionNumber(), v2.getVersionNumber()));
+    }
+
+    public PolicyVersion createNextVersion(String description) {
+        int nextVersionNumber = getLatestVersion()
+                .map(v -> v.getVersionNumber() + 1)
+                .orElse(1);
+
+        List<com.ruleweaver.engine.Condition> clonedConditions = new ArrayList<>();
+        getLatestVersion().ifPresent(latest -> clonedConditions.addAll(latest.getConditions()));
+
+        PolicyVersion nextVersion = new PolicyVersion(
+                id + "_v" + nextVersionNumber,
+                this.id,
+                nextVersionNumber,
+                description,
+                clonedConditions
+        );
+        addVersion(nextVersion);
+        return nextVersion;
     }
 
     @Override
     public String toString() {
-        return "Policy{" + name + ", " + versions.size() + " versions}";
+        return String.format("Policy[id='%s', name='%s', versions=%d]", id, name, versions.size());
     }
 }

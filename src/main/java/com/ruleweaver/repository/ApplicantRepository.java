@@ -3,6 +3,7 @@ package com.ruleweaver.repository;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOptions;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -20,6 +21,14 @@ public class ApplicantRepository {
     // Save a new applicant
     public void save(Document applicant) {
         collection.insertOne(applicant);
+    }
+
+    public void upsert(Document applicant) {
+        Object id = applicant.get("_id");
+        if (id == null) {
+            throw new IllegalArgumentException("Applicant upsert requires an _id.");
+        }
+        collection.replaceOne(Filters.eq("_id", id), applicant, new ReplaceOptions().upsert(true));
     }
 
     // Find applicant by ID (supports string or ObjectId)

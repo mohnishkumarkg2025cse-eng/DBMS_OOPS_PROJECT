@@ -6,9 +6,11 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ValidationOptions;
 import com.ruleweaver.config.MongoConfig;
+import com.ruleweaver.repository.EvaluationRepository;
 import org.bson.Document;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class DatabaseInitializer {
 
@@ -25,8 +27,8 @@ public class DatabaseInitializer {
         // 3. Initialize policy_versions collection with compound unique index
         initPolicyVersionsCollection(db);
 
-        // 4. Initialize evaluation_results collection with query performance indexes
-        initEvaluationResultsCollection(db);
+        // 4. Initialize evaluations collection with query performance indexes
+        initEvaluationsCollection(db);
 
         System.out.println("Database initialization completed successfully!");
     }
@@ -51,23 +53,18 @@ public class DatabaseInitializer {
     private static void initPoliciesCollection(MongoDatabase db) {
         createCollectionIfNotExists(db, "policies", new Document("$jsonSchema", new Document()
                 .append("bsonType", "object")
-                .append("required", Arrays.asList("policyId", "name"))
+                .append("required", Arrays.asList("_id", "name"))
                 .append("properties", new Document()
-                        .append("policyId", new Document("bsonType", "string"))
-                        .append("name", new Document("bsonType", "string")))));
-
-        db.getCollection("policies").createIndex(
-                Indexes.ascending("policyId"),
-                new IndexOptions().unique(true));
+                        .append("_id", new Document("bsonType", "string"))
+                        .append("name", new Document("bsonType", "string"))
+                        .append("description", new Document("bsonType", Arrays.asList("string", "null")))
+                        .append("category", new Document("bsonType", Arrays.asList("string", "null")))
+                        .append("activeVersionNumber", new Document("bsonType", "int"))
+                        .append("archived", new Document("bsonType", "bool")))));
     }
 
     private static void initPolicyVersionsCollection(MongoDatabase db) {
-        createCollectionIfNotExists(db, "policy_versions", new Document("$jsonSchema", new Document()
-                .append("bsonType", "object")
-                .append("required", Arrays.asList("policyId", "version", "rules"))
-                .append("properties", new Document()
-                        .append("policyId", new Document("bsonType", "string"))
-                        .append("version", new Document("bsonType", "int")))));
+        createCollectionIfNotExists(db, "policy_versions", policyVersionValidator());
 
         // Unique Compound Index on policyId + version number
         db.getCollection("policy_versions").createIndex(
@@ -75,14 +72,42 @@ public class DatabaseInitializer {
                 new IndexOptions().unique(true));
     }
 
-    private static void initEvaluationResultsCollection(MongoDatabase db) {
-        createCollectionIfNotExists(db, "evaluation_results", new Document("$jsonSchema", new Document()
-                .append("bsonType", "object")
-                .append("required", Arrays.asList("applicantId", "status"))));
+    static Document evaluationValidator() {
+        Document properties = new Document()
+                .append("applicantId", new Document("bsonType", "string"))
+                .append("applicantName", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("policyId", new Document("bsonType", "string"))
+                .append("policyName", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("policyVersion", new Document("bsonType", "int"))
+                .append("overallDecision", new Document("bsonType", "bool"))
+                .append("evaluatedOn", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("conditionResults", new Document("bsonType", "array"));
+        Document schema = new Document("bsonType", "object")
+                .append("required", List.of("applicantId"))
+                .append("properties", properties);
+        return new Document("$jsonSchema", schema);
+    }
 
-        // Indexes for quick lookup of evaluations
-        db.getCollection("evaluation_results").createIndex(Indexes.ascending("applicantId"));
-        db.getCollection("evaluation_results").createIndex(Indexes.ascending("policyVersionId"));
+    static Document policyVersionValidator() {
+        Document properties = new Document()
+                .append("_id", new Document("bsonType", Arrays.asList("string", "objectId")))
+                .append("policyId", new Document("bsonType", "string"))
+                .append("version", new Document("bsonType", "int"))
+                .append("description", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("createdAt", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("conditions", new Document("bsonType", "array"))
+                .append("rules", new Document("bsonType", "array"));
+        Document schema = new Document("bsonType", "object")
+                .append("required", Arrays.asList("policyId", "version"))
+                .append("properties", properties);
+        return new Document("$jsonSchema", schema);
+    }
+
+    private static void initEvaluationsCollection(MongoDatabase db) {
+        createCollectionIfNotExists(db, EvaluationRepository.COLLECTION_NAME, evaluationValidator());
+        db.getCollection(EvaluationRepository.COLLECTION_NAME).createIndex(Indexes.ascending("applicantId"));
+        db.getCollection(EvaluationRepository.COLLECTION_NAME).createIndex(
+                Indexes.ascending("policyId", "policyVersion"));
     }
 
     private static void createCollectionIfNotExists(MongoDatabase db, String collectionName, Document validator) {
@@ -92,7 +117,10 @@ public class DatabaseInitializer {
             db.createCollection(collectionName, new CreateCollectionOptions().validationOptions(valOptions));
             System.out.println("Created collection with schema validation: " + collectionName);
         } else {
-            System.out.println("Collection already exists: " + collectionName + " (Applying indexes)");
+            db.runCommand(new Document("collMod", collectionName)
+                    .append("validator", validator)
+                    .append("validationLevel", "moderate"));
+            System.out.println("Collection already exists: " + collectionName + " (Updated validator)");
         }
     }
 }

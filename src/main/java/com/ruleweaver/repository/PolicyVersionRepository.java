@@ -24,13 +24,9 @@ public class PolicyVersionRepository {
 
     // Create database indexes
     private void createIndexes() {
-        try {
-            collection.createIndex(
-                    Indexes.ascending("policyId", "version"),
-                    new IndexOptions().unique(true));
-        } catch (Exception e) {
-            // Index might already exist
-        }
+        collection.createIndex(
+                Indexes.compoundIndex(Indexes.ascending("policyId"), Indexes.ascending("version")),
+                new IndexOptions().unique(true));
     }
 
     // Save a new policy version

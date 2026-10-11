@@ -1,53 +1,23 @@
 package com.ruleweaver.repository;
 
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
-import org.bson.Document;
-import org.bson.types.ObjectId;
+import com.ruleweaver.model.Policy;
+import com.ruleweaver.model.PolicyVersion;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-public class PolicyRepository {
-    private final MongoCollection<Document> collection;
+public interface PolicyRepository {
+    Policy save(Policy policy);
 
-    // This constructor must accept MongoDatabase
-    public PolicyRepository(MongoDatabase database) {
-        this.collection = database.getCollection("policies");
-    }
+    Optional<Policy> findById(String id);
 
-    // Save policy
-    public void save(Document policy) {
-        collection.insertOne(policy);
-    }
+    List<Policy> findAll();
 
-    // Find policy by MongoDB _id or application-level policyId
-    public Document findById(String id) {
-        Document policy = null;
+    boolean deleteById(String id);
 
-        try {
-            policy = collection.find(
-                    Filters.eq("_id", new ObjectId(id))).first();
-        } catch (IllegalArgumentException ignored) {
-            // The supplied ID is not a valid ObjectId string.
-        }
+    Optional<PolicyVersion> findVersion(String policyId, int versionNumber);
 
-        if (policy == null) {
-            policy = collection.find(
-                    Filters.eq("_id", id)).first();
-        }
+    Optional<PolicyVersion> findLatestVersion(String policyId);
 
-        if (policy == null) {
-            policy = collection.find(
-                    Filters.eq("policyId", id)).first();
-        }
-
-        return policy;
-    }
-
-    // Retrieve all policies
-    public List<Document> findAll() {
-        return collection.find().into(new ArrayList<>());
-    }
+    void saveVersion(String policyId, PolicyVersion version);
 }
