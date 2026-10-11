@@ -53,7 +53,7 @@ public class AppHeader extends HBox {
         motionBtn.setGraphic(Icons.create(Icons.SPARKLES, 0.7, "#9aa0c3"));
         motionBtn.getStyleClass().add("btn-icon");
         Tooltip motionTooltip = new Tooltip("Toggle Reduced Motion");
-        Theme.applyTo(motionTooltip);
+        Theme.apply(motionTooltip);
         motionBtn.setTooltip(motionTooltip);
         motionBtn.setOnAction(e -> {
             boolean current = ctx.reducedMotionProperty().get();
@@ -66,7 +66,7 @@ public class AppHeader extends HBox {
         refreshBtn.setGraphic(Icons.create(Icons.REFRESH, 0.7, "#9aa0c3"));
         refreshBtn.getStyleClass().add("btn-icon");
         Tooltip refreshTooltip = new Tooltip("Refresh Current Data");
-        Theme.applyTo(refreshTooltip);
+        Theme.apply(refreshTooltip);
         refreshBtn.setTooltip(refreshTooltip);
         refreshBtn.setOnAction(e -> {
             if (onRefresh != null) onRefresh.run();

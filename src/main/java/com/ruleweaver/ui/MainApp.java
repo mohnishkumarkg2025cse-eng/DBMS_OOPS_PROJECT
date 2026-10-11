@@ -10,6 +10,7 @@ import com.ruleweaver.ui.util.Theme;
 import com.ruleweaver.ui.views.*;
 import com.ruleweaver.config.MongoConfig;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
@@ -101,7 +102,7 @@ public class MainApp extends Application {
 
         // 2. Scene & Stylesheet
         Scene scene = new Scene(rootLayer, 1220, 780);
-        Theme.applyTo(scene);
+        Theme.apply(scene);
 
         // 3. Stage Setup
         primaryStage.setTitle("RuleWeaver X — Explainable Decision Engine & Time Machine");
@@ -113,9 +114,24 @@ public class MainApp extends Application {
             appContext.shutdown();
         });
 
+        if (Boolean.getBoolean("ruleweaver.styledebug")) {
+            StyleDebug.install();
+        }
+
         // Initial Navigation
         viewRouter.navigateTo(Sidebar.Destination.DASHBOARD);
         primaryStage.show();
+
+        if (Boolean.getBoolean("ruleweaver.styledebug")) {
+            Platform.runLater(() -> {
+                StyleDebug.dump("Dashboard", primaryStage);
+                viewRouter.navigateTo(Sidebar.Destination.POLICIES);
+                Platform.runLater(() -> {
+                    StyleDebug.dump("Policies", primaryStage);
+                    viewRouter.navigateTo(Sidebar.Destination.DASHBOARD);
+                });
+            });
+        }
 
         if (MongoConfig.getConfiguredUri().isPresent()) {
             connectAndLoadData(primaryStage);
@@ -199,7 +215,7 @@ public class MainApp extends Application {
         confirmation.setHeaderText("Clear seeded records");
         confirmation.initOwner((Stage) header.getScene().getWindow());
         confirmation.initModality(javafx.stage.Modality.WINDOW_MODAL);
-        Theme.applyTo(confirmation);
+        Theme.apply(confirmation);
         confirmation.showAndWait().filter(javafx.scene.control.ButtonType.OK::equals).ifPresent(button -> {
             SampleDataSeeder.clearDemoData(() -> {
                 appContext.showToast(Toast.success(

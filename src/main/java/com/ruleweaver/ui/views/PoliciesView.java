@@ -58,7 +58,10 @@ public class PoliciesView implements BaseView {
     }
 
     private void buildUI() {
+        rootPane.getStyleClass().add("page-root");
         VBox contentBox = new VBox(20);
+        contentBox.getStyleClass().add("page-root");
+        contentBox.setMinWidth(0);
         contentBox.setPadding(new Insets(28, 32, 28, 32));
 
         // 1. Toolbar Header
@@ -66,15 +69,18 @@ public class PoliciesView implements BaseView {
 
         // 2. Master-Detail Layout (SplitPane / HBox)
         HBox masterDetail = new HBox(20);
+        masterDetail.setMinWidth(0);
         VBox.setVgrow(masterDetail, Priority.ALWAYS);
 
         // Master Column (Policies List)
         VBox masterCol = createMasterColumn();
         masterCol.setPrefWidth(320);
         masterCol.setMinWidth(280);
+        masterCol.setMaxWidth(Double.MAX_VALUE);
 
         // Detail Column (Version & Conditions)
         VBox detailCol = createDetailColumn();
+        detailCol.setMinWidth(0);
         HBox.setHgrow(detailCol, Priority.ALWAYS);
 
         masterDetail.getChildren().addAll(masterCol, detailCol);
@@ -133,7 +139,7 @@ public class PoliciesView implements BaseView {
                     titleRow.setMaxWidth(Double.MAX_VALUE);
 
                     Label nameLbl = new Label(policy.getName());
-                    nameLbl.setStyle("-fx-font-weight: 700; -fx-text-fill: -color-text-primary; -fx-font-size: 13px;");
+                    nameLbl.getStyleClass().add("policy-row-name");
                     nameLbl.setTextOverrun(OverrunStyle.ELLIPSIS);
                     nameLbl.setWrapText(false);
                     nameLbl.setMinWidth(0);
@@ -144,7 +150,7 @@ public class PoliciesView implements BaseView {
                     titleRow.getChildren().addAll(nameLbl, versionBadge);
 
                     Label idLbl = new Label("ID: " + policy.getId());
-                    idLbl.setStyle("-fx-font-size: 11px; -fx-text-fill: -color-text-muted;");
+                    idLbl.getStyleClass().add("policy-row-id");
 
                     box.getChildren().addAll(titleRow, idLbl);
                     setGraphic(box);
@@ -160,7 +166,7 @@ public class PoliciesView implements BaseView {
 
     private VBox createDetailColumn() {
         VBox card = new VBox(18);
-        card.getStyleClass().add("card");
+        card.getStyleClass().addAll("card", "policy-detail");
         VBox.setVgrow(card, Priority.ALWAYS);
 
         // Header with Policy info & Actions
@@ -168,8 +174,8 @@ public class PoliciesView implements BaseView {
         detailHeader.setAlignment(Pos.CENTER_LEFT);
 
         VBox infoBlock = new VBox(3);
-        policyTitleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
-        policyDescLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -color-text-secondary;");
+        policyTitleLabel.getStyleClass().add("policy-detail-title");
+        policyDescLabel.getStyleClass().add("policy-detail-description");
         infoBlock.getChildren().addAll(policyTitleLabel, policyDescLabel);
         HBox.setHgrow(infoBlock, Priority.ALWAYS);
 
@@ -177,12 +183,13 @@ public class PoliciesView implements BaseView {
         detailHeader.getChildren().addAll(infoBlock, policyIdBadge);
 
         // Version Selector & Action Row
-        HBox versionControlBar = new HBox(12);
+        FlowPane versionControlBar = new FlowPane(12, 10);
         versionControlBar.setAlignment(Pos.CENTER_LEFT);
+        versionControlBar.setMinWidth(0);
         versionControlBar.getStyleClass().add("policy-version-control-bar");
 
         Label versionPrompt = new Label("Policy Version:");
-        versionPrompt.setStyle("-fx-font-weight: 600; -fx-text-fill: -color-text-secondary;");
+        versionPrompt.getStyleClass().add("policy-inline-label");
 
         versionComboBox.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -207,8 +214,10 @@ public class PoliciesView implements BaseView {
             }
         });
         versionComboBox.setPrefWidth(200);
+        versionComboBox.setMinWidth(Region.USE_PREF_SIZE);
 
         setActiveBtn.getStyleClass().add("btn-secondary");
+        setActiveBtn.setMinWidth(Region.USE_PREF_SIZE);
         setActiveBtn.setGraphic(Icons.create(Icons.CHECK, 0.65, "#a6e3a1"));
         setActiveBtn.setOnAction(e -> {
             PolicyVersion selected = versionComboBox.getValue();
@@ -217,10 +226,8 @@ public class PoliciesView implements BaseView {
             }
         });
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
         newVersionBtn.getStyleClass().add("btn-primary");
+        newVersionBtn.setMinWidth(Region.USE_PREF_SIZE);
         newVersionBtn.setGraphic(Icons.create(Icons.PLUS, 0.7, "#11111b"));
         newVersionBtn.setOnAction(e -> {
             Policy selected = policyListView.getSelectionModel().getSelectedItem();
@@ -231,6 +238,7 @@ public class PoliciesView implements BaseView {
 
         Button whatIfButton = new Button("What-if Simulator");
         whatIfButton.getStyleClass().add("btn-secondary");
+        whatIfButton.setMinWidth(Region.USE_PREF_SIZE);
         whatIfButton.setOnAction(event -> {
             if (policyListView.getSelectionModel().getSelectedItem() == null) {
                 AppContext.getInstance().showToast(Toast.error(
@@ -241,7 +249,7 @@ public class PoliciesView implements BaseView {
         });
 
         versionControlBar.getChildren().addAll(
-                versionPrompt, versionComboBox, setActiveBtn, whatIfButton, spacer, newVersionBtn);
+                versionPrompt, versionComboBox, setActiveBtn, whatIfButton, newVersionBtn);
         VBox historySection = createVersionHistory();
 
         // Conditions Section
@@ -249,7 +257,10 @@ public class PoliciesView implements BaseView {
         conditionsHeader.getStyleClass().add("caption-label");
 
         ScrollPane scroll = new ScrollPane(conditionsContainer);
+        scroll.getStyleClass().add("page-root");
+        scroll.setMinWidth(0);
         scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         card.getChildren().addAll(detailHeader, versionControlBar, historySection, conditionsHeader, scroll);

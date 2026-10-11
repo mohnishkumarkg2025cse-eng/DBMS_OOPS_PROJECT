@@ -123,7 +123,7 @@ public class ComparisonView implements BaseView {
         swapBtn.setGraphic(Icons.create(Icons.SWAP, 0.75, "#89b4fa"));
         swapBtn.getStyleClass().add("btn-icon");
         Tooltip swapTooltip = new Tooltip("Swap Baseline & Target Versions");
-        Theme.applyTo(swapTooltip);
+        Theme.apply(swapTooltip);
         swapBtn.setTooltip(swapTooltip);
         swapBtn.setOnAction(e -> {
             PolicyVersion temp = versionACombo.getValue();

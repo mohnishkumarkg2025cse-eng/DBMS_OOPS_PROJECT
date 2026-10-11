@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
  */
 public class DashboardView implements BaseView {
 
+    private static final double SIDEBAR_WIDTH = 240;
     private final StackPane rootPane = new StackPane();
     private final ScrollPane scrollPane = new ScrollPane();
     private final VBox contentBox = new VBox(24);
@@ -126,11 +127,15 @@ public class DashboardView implements BaseView {
     }
 
     private void buildUI() {
-        contentBox.getStyleClass().add("dash-page");
+        rootPane.getStyleClass().add("page-root");
+        contentBox.getStyleClass().addAll("dash-page", "page-root");
+        contentBox.setMinWidth(0);
+        contentBox.setMaxWidth(Double.MAX_VALUE);
         contentGrid.setHgap(20);
         contentGrid.setVgap(20);
+        contentGrid.setMinWidth(0);
         contentGrid.setMaxWidth(Double.MAX_VALUE);
-        rootPane.setMinSize(1100, 700);
+        rootPane.setMinSize(0, 0);
 
         HBox header = createHeader();
         createKpiRow();
@@ -141,6 +146,8 @@ public class DashboardView implements BaseView {
         layoutDashboard(header, recentCard, attentionCard, whatIfCard, 0);
 
         scrollPane.setContent(contentBox);
+        scrollPane.getStyleClass().add("page-root");
+        scrollPane.setMinWidth(0);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(false);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -222,11 +229,16 @@ public class DashboardView implements BaseView {
                 whatIfThresholdValue.setText(String.format("%.2f", newValue.doubleValue())));
         whatIfThresholdValue.getStyleClass().add("whatif-number");
 
+        Label versionLabel = new Label("Version");
+        versionLabel.getStyleClass().add("policy-inline-label");
+        Label ruleLabel = new Label("Numeric rule");
+        ruleLabel.getStyleClass().add("policy-inline-label");
         HBox selectors = new HBox(10,
-                new Label("Version"), whatIfVersionChoice,
-                new Label("Numeric rule"), whatIfRuleChoice);
+                versionLabel, whatIfVersionChoice, ruleLabel, whatIfRuleChoice);
         selectors.setAlignment(Pos.CENTER_LEFT);
-        HBox thresholdRow = new HBox(10, new Label("Test threshold"), whatIfThreshold, whatIfThresholdValue);
+        Label thresholdLabel = new Label("Test threshold");
+        thresholdLabel.getStyleClass().add("policy-inline-label");
+        HBox thresholdRow = new HBox(10, thresholdLabel, whatIfThreshold, whatIfThresholdValue);
         thresholdRow.setAlignment(Pos.CENTER_LEFT);
 
         runWhatIfButton.getStyleClass().add("btn-primary");
@@ -404,9 +416,13 @@ public class DashboardView implements BaseView {
         HBox header = new HBox(20);
         header.setAlignment(Pos.CENTER_LEFT);
         VBox titleBox = new VBox(3);
+        titleBox.setMinWidth(0);
         Label title = new Label("System Dashboard");
+        title.setMinWidth(0);
         title.getStyleClass().add("page-title");
         Label subtitle = new Label("Decision outcomes, criteria compliance, and version impact");
+        subtitle.setMinWidth(0);
+        subtitle.setWrapText(true);
         subtitle.getStyleClass().add("page-subtitle");
         titleBox.getChildren().addAll(title, subtitle);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
@@ -467,13 +483,19 @@ public class DashboardView implements BaseView {
     }
 
     private void layoutKpiCards(double width) {
-        int columns = width >= 1300 ? 5 : 2;
+        double screenWidth = width + SIDEBAR_WIDTH;
+        int columns = screenWidth >= 1300 ? 5 : 3;
+        if (screenWidth < 900) {
+            columns = 2;
+        }
         kpiGrid.getChildren().clear();
         List<KpiCard> cards = List.of(totalCard, eligibleCard, rejectedCard, passRateCard, impactCard);
         for (int i = 0; i < cards.size(); i++) {
             int row = i / columns;
             int column = i % columns;
             kpiGrid.add(cards.get(i), column, row);
+            cards.get(i).setMinWidth(0);
+            cards.get(i).setMaxWidth(Double.MAX_VALUE);
             GridPane.setHgrow(cards.get(i), Priority.ALWAYS);
             GridPane.setFillWidth(cards.get(i), true);
         }
@@ -601,7 +623,11 @@ public class DashboardView implements BaseView {
 
     private void layoutDashboard(HBox header, VBox recentCard, VBox attentionCard,
                                  VBox whatIfCard, double width) {
-        int columns = width >= 1300 ? 3 : 2;
+        double screenWidth = width + SIDEBAR_WIDTH;
+        int columns = screenWidth >= 1300 ? 3 : 2;
+        if (screenWidth < 900) {
+            columns = 1;
+        }
         layoutKpiCards(width);
         if (responsiveColumnCount == columns && !contentGrid.getChildren().isEmpty()) return;
         responsiveColumnCount = columns;
@@ -621,16 +647,25 @@ public class DashboardView implements BaseView {
             contentGrid.add(barWidget, 1, 2, 2, 1);
             contentGrid.add(recentCard, 0, 3, 2, 1);
             contentGrid.add(attentionCard, 2, 3);
-        } else {
+        } else if (columns == 2) {
             contentGrid.add(pieWidget, 0, 2);
             contentGrid.add(barWidget, 1, 2);
             contentGrid.add(recentCard, 0, 3);
             contentGrid.add(attentionCard, 1, 3);
+        } else {
+            contentGrid.add(pieWidget, 0, 2);
+            contentGrid.add(barWidget, 0, 3);
+            contentGrid.add(recentCard, 0, 4);
+            contentGrid.add(attentionCard, 0, 5);
         }
-        contentGrid.add(whatIfCard, 0, 4, columns, 1);
+        contentGrid.add(whatIfCard, 0, columns == 1 ? 6 : 4, columns, 1);
         for (Node node : contentGrid.getChildren()) {
-            GridPane.setHgrow(node, Priority.ALWAYS);
-            GridPane.setFillWidth(node, true);
+            if (node instanceof Region region) {
+                region.setMinWidth(0);
+                region.setMaxWidth(Double.MAX_VALUE);
+                GridPane.setHgrow(region, Priority.ALWAYS);
+                GridPane.setFillWidth(region, true);
+            }
         }
         contentBox.getChildren().setAll(contentGrid);
     }

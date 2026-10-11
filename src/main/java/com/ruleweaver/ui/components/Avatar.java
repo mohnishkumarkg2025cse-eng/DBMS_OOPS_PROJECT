@@ -9,7 +9,7 @@ import javafx.scene.layout.StackPane;
  */
 public class Avatar extends StackPane {
 
-    private static final int PALETTE_SIZE = 7;
+    private static final int PALETTE_SIZE = 8;
 
     public Avatar(String name) {
         setAlignment(Pos.CENTER);

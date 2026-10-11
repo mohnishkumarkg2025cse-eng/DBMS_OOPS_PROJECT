@@ -7,9 +7,9 @@ RuleWeaver X is a JavaFX desktop application for defining versioned decision pol
 | Item | Current state |
 |---|---|
 | Stack | Java 17, JavaFX 20.0.1, Maven, MongoDB Java sync driver 5.12.0, JUnit 5.9.0 |
-| Current branch | `feature/cursor-tasks` |
-| Latest commit | `da3b224` — `Save current RuleWeaver X progress` |
-| Working tree | Clean when inspected; test output is under ignored `target/` |
+| Current branch | `main` |
+| Latest commit | `d6e4731` — `Update RuleWeaver X implementation` |
+| Working tree | This document update is the only intended working-tree change; local config remains ignored. |
 | Main source/test layout | `src/main/java`, `src/main/resources`, `src/test/java` |
 
 ## B. Completed Features
@@ -41,7 +41,7 @@ These items have implementation evidence and automated test evidence. Test evide
 
 ## E. Database and Persistence
 
-- **Application database:** `ruleweaver` is the default in `MongoConfig` and in `config.example.properties`; `RULEWEAVER_DB_NAME` can override it. MongoDB configuration does not contain a hard-coded credential.
+- **Application database:** `ruleweaver` is the default in `MongoConfig` and in `config.example.properties`; `RULEWEAVER_DB_NAME` can override it. The Java configuration loader does not embed a MongoDB URI.
 - **Integration-test database:** `ApplicantRepositoryTest` connects to `ruleweaver_test`, pings it, and removes its generated test records in cleanup.
 - **Collections and records:**
 
@@ -71,11 +71,12 @@ The test build compiled 65 production and 7 test Java source files. Maven report
 - `MongoConnectionDialog` verifies a connection with `ping` before saving settings locally. `MongoConfig` sanitizes Mongo credential text in error messages.
 - `config.example.properties` is the safe template: it contains only the URI placeholders `<username>`, `<password>`, and `<cluster-host>`, plus the default database name. No secret values are recorded here.
 - `config.local.properties` is intended to remain local and `.gitignore` excludes it; `git check-ignore` confirmed it is ignored. Ignoring a file is not a substitute for avoiding accidental force-adds or committing secrets.
-- Remaining concerns: use a least-privilege account for the application/test databases; reserve `DatabaseInitializer` for an account with required collection/index/`collMod` privileges. If credentials have ever been committed, rotate them and review repository history; this update did not audit or alter Git history.
+- The local config file contains connection settings and is not reproduced here. Keep its credentials private and rotate them if they remain active. Use a least-privilege account for the application/test databases; reserve `DatabaseInitializer` for an account with required collection/index/`collMod` privileges. If credentials have ever been committed, rotate them and review repository history; this update did not audit or alter Git history.
 
 ## H. Recent Changes
 
-- `da3b224` (2026-10-11), current branch: Dashboard rebuild and what-if simulator, rule-builder polish, JavaFX styling/components, and a `WhatIfSimulatorTest`. The commit also updated progress documentation.
+- `d6e4731` (2026-10-11), current branch: progress/handoff documentation update; no application source files changed in that commit.
+- `da3b224` (2026-10-11): Dashboard rebuild and what-if simulator, rule-builder polish, JavaFX styling/components, and a `WhatIfSimulatorTest`.
 - `b185730` (2026-10-11): foundational domain/engine, Mongo configuration and repositories, service layer, JavaFX shell/views, schema initialization, Maven packaging setup, and initial tests.
 - Earlier history includes persistence/integration-test work (`4317107`), the `Main.java` entry point (`7001084`), and codebase/domain consolidation (`bc072cd`).
 

@@ -32,7 +32,7 @@ public final class MongoConnectionDialog {
         dialog.setTitle("Connect to MongoDB");
         dialog.initOwner(owner);
         dialog.initModality(Modality.WINDOW_MODAL);
-        Theme.applyTo(dialog);
+        Theme.apply(dialog);
 
         ButtonType connectType = new ButtonType("Connect", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelType = new ButtonType("Continue Offline", ButtonBar.ButtonData.CANCEL_CLOSE);

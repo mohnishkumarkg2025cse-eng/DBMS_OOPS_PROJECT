@@ -273,13 +273,13 @@ public class ApplicantsView implements BaseView {
                 editBtn.setGraphic(Icons.create(Icons.EDIT, 0.65, "#89b4fa"));
                 editBtn.getStyleClass().add("btn-icon");
                 Tooltip editTooltip = new Tooltip("Edit Candidate");
-                Theme.applyTo(editTooltip);
+                Theme.apply(editTooltip);
                 editBtn.setTooltip(editTooltip);
 
                 deleteBtn.setGraphic(Icons.create(Icons.TRASH, 0.65, "#f38ba8"));
                 deleteBtn.getStyleClass().addAll("btn-icon", "btn-danger");
                 Tooltip deleteTooltip = new Tooltip("Delete Candidate");
-                Theme.applyTo(deleteTooltip);
+                Theme.apply(deleteTooltip);
                 deleteBtn.setTooltip(deleteTooltip);
             }
 
