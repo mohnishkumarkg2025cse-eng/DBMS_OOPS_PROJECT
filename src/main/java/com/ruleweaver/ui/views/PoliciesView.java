@@ -21,9 +21,11 @@ import javafx.concurrent.Task;
 import java.util.ArrayList;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 /**
  * Screen 2: Policy & Version Manager (Master-Detail).
@@ -43,9 +45,15 @@ public class PoliciesView implements BaseView {
     private final Label policyIdBadge = new Label("");
     private final Button newVersionBtn = new Button("New Version");
     private final Button setActiveBtn = new Button("Set Active");
+    private final Runnable openWhatIfSimulator;
     private Policy displayedPolicy;
 
     public PoliciesView() {
+        this(() -> { });
+    }
+
+    public PoliciesView(Runnable openWhatIfSimulator) {
+        this.openWhatIfSimulator = openWhatIfSimulator;
         buildUI();
     }
 
@@ -171,8 +179,7 @@ public class PoliciesView implements BaseView {
         // Version Selector & Action Row
         HBox versionControlBar = new HBox(12);
         versionControlBar.setAlignment(Pos.CENTER_LEFT);
-        versionControlBar.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 12px; "
-                + "-fx-padding: 10px 14px 10px 14px; -fx-border-color: -color-border-subtle; -fx-border-radius: 12px; -fx-border-width: 1px;");
+        versionControlBar.getStyleClass().add("policy-version-control-bar");
 
         Label versionPrompt = new Label("Policy Version:");
         versionPrompt.setStyle("-fx-font-weight: 600; -fx-text-fill: -color-text-secondary;");
@@ -222,7 +229,19 @@ public class PoliciesView implements BaseView {
             }
         });
 
-        versionControlBar.getChildren().addAll(versionPrompt, versionComboBox, setActiveBtn, spacer, newVersionBtn);
+        Button whatIfButton = new Button("What-if Simulator");
+        whatIfButton.getStyleClass().add("btn-secondary");
+        whatIfButton.setOnAction(event -> {
+            if (policyListView.getSelectionModel().getSelectedItem() == null) {
+                AppContext.getInstance().showToast(Toast.error(
+                        "Select a Policy", "Choose a policy before opening the simulator.", null));
+                return;
+            }
+            openWhatIfSimulator.run();
+        });
+
+        versionControlBar.getChildren().addAll(
+                versionPrompt, versionComboBox, setActiveBtn, whatIfButton, spacer, newVersionBtn);
         VBox historySection = createVersionHistory();
 
         // Conditions Section
@@ -231,7 +250,6 @@ public class PoliciesView implements BaseView {
 
         ScrollPane scroll = new ScrollPane(conditionsContainer);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         card.getChildren().addAll(detailHeader, versionControlBar, historySection, conditionsHeader, scroll);
@@ -394,6 +412,22 @@ public class PoliciesView implements BaseView {
         conditionsContainer.getChildren().clear();
 
         List<Condition> conditions = version.getConditions();
+        Label preview = new Label(ConditionRow.toPreviewSentence(conditions));
+        preview.setWrapText(true);
+        preview.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: -color-accent;");
+        conditionsContainer.getChildren().add(preview);
+
+        FlowPane diffChips = new FlowPane(8, 8);
+        List<Condition> previous = version.getVersionNumber() <= 1 || displayedPolicy == null
+                ? List.of()
+                : displayedPolicy.getVersion(version.getVersionNumber() - 1)
+                .map(PolicyVersion::getConditions)
+                .orElse(List.of());
+        renderDiffChips(diffChips, previous, conditions, version.getVersionNumber());
+        if (!diffChips.getChildren().isEmpty()) {
+            conditionsContainer.getChildren().add(diffChips);
+        }
+
         if (conditions.isEmpty()) {
             conditionsContainer.getChildren().add(new EmptyState(
                     Icons.POLICIES,
@@ -409,8 +443,7 @@ public class PoliciesView implements BaseView {
             Condition c = conditions.get(i);
             HBox row = new HBox(12);
             row.setAlignment(Pos.CENTER_LEFT);
-            row.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 12px; "
-                    + "-fx-padding: 14px 18px 14px 18px; -fx-border-color: -color-border-subtle; -fx-border-radius: 12px; -fx-border-width: 1px;");
+            row.getStyleClass().add("policy-condition-row");
 
             Label num = new Label(String.valueOf(i + 1));
             num.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: -color-accent;");
@@ -452,22 +485,25 @@ public class PoliciesView implements BaseView {
         descInput.setPromptText("Description / Business Intent");
 
         VBox rowsContainer = new VBox(10);
+        Label preview = livePreviewLabel();
+        Label formError = formErrorLabel();
+        FlowPane diffChips = new FlowPane(8, 8);
+        Button saveBtn = new Button("Create Policy");
+        saveBtn.getStyleClass().add("btn-primary");
+        Runnable refreshBuilder = () -> refreshRuleBuilder(
+                rowsContainer, preview, diffChips, formError, saveBtn, null, 1,
+                () -> !nameInput.getText().trim().isEmpty());
         Button addRuleBtn = new Button("Add Condition");
         addRuleBtn.getStyleClass().add("btn-secondary");
         addRuleBtn.setGraphic(Icons.create(Icons.PLUS, 0.65, "#89b4fa"));
-        addRuleBtn.setOnAction(e -> {
-            ConditionRow newRow = new ConditionRow(r -> rowsContainer.getChildren().remove(r));
-            rowsContainer.getChildren().add(newRow);
-        });
+        addRuleBtn.setOnAction(e -> attachConditionRow(rowsContainer, refreshBuilder));
 
-        // Add 1 default row
-        ConditionRow firstRow = new ConditionRow(r -> rowsContainer.getChildren().remove(r));
-        rowsContainer.getChildren().add(firstRow);
+        attachConditionRow(rowsContainer, refreshBuilder);
+        nameInput.textProperty().addListener((obs, oldVal, newVal) -> refreshBuilder.run());
 
         ScrollPane rowsScroll = new ScrollPane(rowsContainer);
         rowsScroll.setFitToWidth(true);
         rowsScroll.setMaxHeight(260);
-        rowsScroll.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
 
         HBox btnRow = new HBox(10);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
@@ -476,8 +512,6 @@ public class PoliciesView implements BaseView {
         cancelBtn.getStyleClass().add("btn-secondary");
         cancelBtn.setOnAction(e -> rootPane.getChildren().remove(modalBackdrop));
 
-        Button saveBtn = new Button("Create Policy");
-        saveBtn.getStyleClass().add("btn-primary");
         saveBtn.setOnAction(e -> {
             String name = nameInput.getText().trim();
             if (name.isEmpty()) {
@@ -485,20 +519,9 @@ public class PoliciesView implements BaseView {
                 return;
             }
 
-            List<Condition> conditions = new ArrayList<>();
-            try {
-                for (Node child : rowsContainer.getChildren()) {
-                    if (child instanceof ConditionRow cr) {
-                        conditions.add(cr.buildCondition());
-                    }
-                }
-            } catch (IllegalArgumentException ex) {
-                AppContext.getInstance().showToast(Toast.error("Condition Error", ex.getMessage(), null));
-                return;
-            }
-
-            if (conditions.isEmpty()) {
-                AppContext.getInstance().showToast(Toast.error("Validation Error", "At least one condition rule must be defined.", null));
+            refreshBuilder.run();
+            List<Condition> conditions = collectValidConditions(rowsContainer);
+            if (conditions == null) {
                 return;
             }
 
@@ -531,9 +554,12 @@ public class PoliciesView implements BaseView {
                 new VBox(4, new Label("Policy Name *"), nameInput),
                 new VBox(4, new Label("Description"), descInput),
                 new HBox(8, new Label("Initial Conditions"), addRuleBtn),
+                preview,
+                formError,
                 rowsScroll,
                 btnRow
         );
+        refreshBuilder.run();
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
@@ -541,6 +567,35 @@ public class PoliciesView implements BaseView {
     }
 
     private void showNewVersionModal(Policy policy) {
+        PolicyVersion latest = policy.getLatestVersion().orElse(null);
+        showNewVersionModal(
+                policy,
+                latest == null ? List.of() : latest.getConditions(),
+                latest == null ? 0 : latest.getVersionNumber(),
+                "Tightened criteria for version " + (policy.getVersions().size() + 1));
+    }
+
+    public void showNewVersionDraft(Policy policy, PolicyVersion simulatedVersion) {
+        if (policy == null || simulatedVersion == null
+                || !policy.getId().equals(simulatedVersion.getPolicyId())) {
+            throw new IllegalArgumentException("A matching policy and simulated version are required.");
+        }
+        Policy availablePolicy = AppContext.getInstance().getPolicies().stream()
+                .filter(candidate -> candidate.getId().equals(policy.getId()))
+                .findFirst()
+                .orElse(policy);
+        policyListView.getSelectionModel().select(availablePolicy);
+        AppContext.getInstance().selectedPolicyProperty().set(availablePolicy);
+        displayPolicy(availablePolicy);
+        showNewVersionModal(
+                availablePolicy,
+                simulatedVersion.getConditions(),
+                simulatedVersion.getVersionNumber(),
+                "What-if draft based on version " + simulatedVersion.getVersionNumber());
+    }
+
+    private void showNewVersionModal(Policy policy, List<Condition> initialConditions,
+                                    int sourceVersionNumber, String initialNote) {
         StackPane modalBackdrop = new StackPane();
         modalBackdrop.getStyleClass().add("modal-backdrop");
 
@@ -552,31 +607,36 @@ public class PoliciesView implements BaseView {
         Label title = new Label("Create Version " + nextVerNum + " for '" + policy.getName() + "'");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
 
-        TextField descInput = new TextField("Tightened criteria for version " + nextVerNum);
+        TextField descInput = new TextField(initialNote);
         descInput.setPromptText("Version change rationale / notes");
 
         VBox rowsContainer = new VBox(10);
+        Label preview = livePreviewLabel();
+        Label formError = formErrorLabel();
+        FlowPane diffChips = new FlowPane(8, 8);
+        List<Condition> previousRules = policy.getLatestVersion()
+                .map(PolicyVersion::getConditions)
+                .orElse(List.of());
+        Button saveBtn = new Button("Save Version " + nextVerNum);
+        saveBtn.getStyleClass().add("btn-primary");
+        Runnable refreshBuilder = () -> refreshRuleBuilder(
+                rowsContainer, preview, diffChips, formError, saveBtn, previousRules, nextVerNum, () -> true);
         Button addRuleBtn = new Button("Add Condition");
         addRuleBtn.getStyleClass().add("btn-secondary");
         addRuleBtn.setGraphic(Icons.create(Icons.PLUS, 0.65, "#89b4fa"));
-        addRuleBtn.setOnAction(e -> {
-            ConditionRow newRow = new ConditionRow(r -> rowsContainer.getChildren().remove(r));
-            rowsContainer.getChildren().add(newRow);
-        });
+        addRuleBtn.setOnAction(e -> attachConditionRow(rowsContainer, refreshBuilder));
 
-        // Pre-populate with existing conditions of latest version
-        policy.getLatestVersion().ifPresent(latest -> {
-            for (Condition c : latest.getConditions()) {
-                ConditionRow row = new ConditionRow(r -> rowsContainer.getChildren().remove(r));
-                row.populateFrom(c);
-                rowsContainer.getChildren().add(row);
-            }
-        });
+        for (Condition condition : initialConditions) {
+            ConditionRow row = attachConditionRow(rowsContainer, refreshBuilder);
+            row.populateFrom(condition);
+        }
+        if (rowsContainer.getChildren().isEmpty()) {
+            attachConditionRow(rowsContainer, refreshBuilder);
+        }
 
         ScrollPane rowsScroll = new ScrollPane(rowsContainer);
         rowsScroll.setFitToWidth(true);
         rowsScroll.setMaxHeight(260);
-        rowsScroll.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
 
         HBox btnRow = new HBox(10);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
@@ -585,23 +645,10 @@ public class PoliciesView implements BaseView {
         cancelBtn.getStyleClass().add("btn-secondary");
         cancelBtn.setOnAction(e -> rootPane.getChildren().remove(modalBackdrop));
 
-        Button saveBtn = new Button("Save Version " + nextVerNum);
-        saveBtn.getStyleClass().add("btn-primary");
         saveBtn.setOnAction(e -> {
-            List<Condition> conditions = new ArrayList<>();
-            try {
-                for (Node child : rowsContainer.getChildren()) {
-                    if (child instanceof ConditionRow cr) {
-                        conditions.add(cr.buildCondition());
-                    }
-                }
-            } catch (IllegalArgumentException ex) {
-                AppContext.getInstance().showToast(Toast.error("Condition Error", ex.getMessage(), null));
-                return;
-            }
-
-            if (conditions.isEmpty()) {
-                AppContext.getInstance().showToast(Toast.error("Validation Error", "At least one condition rule must be defined.", null));
+            refreshBuilder.run();
+            List<Condition> conditions = collectValidConditions(rowsContainer);
+            if (conditions == null) {
                 return;
             }
 
@@ -629,14 +676,180 @@ public class PoliciesView implements BaseView {
         box.getChildren().addAll(
                 title,
                 new VBox(4, new Label("Version Rationale / Notes"), descInput),
-                new HBox(8, new Label("Version Criteria (Cloned from v" + (nextVerNum - 1) + ")"), addRuleBtn),
+                new HBox(8, new Label("Version Criteria (Cloned from v" + sourceVersionNumber + ")"), addRuleBtn),
+                preview,
+                diffChips,
+                formError,
                 rowsScroll,
                 btnRow
         );
+        refreshBuilder.run();
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
         Motion.modalScaleIn(box);
+    }
+
+    private ConditionRow attachConditionRow(VBox rowsContainer, Runnable onChange) {
+        ConditionRow row = new ConditionRow(removed -> {
+            rowsContainer.getChildren().remove(removed);
+            onChange.run();
+        });
+        row.setValidationChangeListener(onChange);
+        rowsContainer.getChildren().add(row);
+        onChange.run();
+        return row;
+    }
+
+    private void refreshRuleBuilder(VBox rowsContainer, Label preview, FlowPane diffChips, Label formError,
+                                    Button saveBtn, List<Condition> previousRules, int versionNumber,
+                                    BooleanSupplier extraValid) {
+        List<ConditionRow> rows = collectRows(rowsContainer);
+        Map<String, Integer> signatures = new HashMap<>();
+        for (ConditionRow row : rows) {
+            String signature = row.getSignature();
+            if (signature != null) {
+                signatures.merge(signature, 1, Integer::sum);
+            }
+        }
+
+        boolean rowsValid = true;
+        List<String> clauses = new ArrayList<>();
+        List<Condition> drafted = new ArrayList<>();
+        for (ConditionRow row : rows) {
+            String message = row.getValidationMessage();
+            String signature = row.getSignature();
+            if (signature != null && signatures.getOrDefault(signature, 0) > 1) {
+                message = "This rule duplicates another rule.";
+            }
+            row.setErrorMessage(message);
+            if (message != null) {
+                rowsValid = false;
+            }
+            clauses.add(row.getPreviewClause());
+            if (message == null) {
+                drafted.add(row.buildCondition());
+            }
+        }
+
+        preview.setText(clauses.isEmpty()
+                ? "Eligible if …"
+                : "Eligible if " + String.join(" AND ", clauses));
+
+        if (rows.isEmpty()) {
+            formError.setText("Add at least one rule.");
+            formError.setVisible(true);
+            formError.setManaged(true);
+        } else {
+            formError.setText("");
+            formError.setVisible(false);
+            formError.setManaged(false);
+        }
+
+        boolean extraOk = extraValid == null || extraValid.getAsBoolean();
+        saveBtn.setDisable(!(rowsValid && !rows.isEmpty() && extraOk));
+        renderDiffChips(diffChips, previousRules, drafted, versionNumber);
+    }
+
+    private List<Condition> collectValidConditions(VBox rowsContainer) {
+        List<ConditionRow> rows = collectRows(rowsContainer);
+        if (rows.isEmpty()) {
+            AppContext.getInstance().showToast(Toast.error("Validation Error",
+                    "At least one condition rule must be defined.", null));
+            return null;
+        }
+        List<Condition> conditions = new ArrayList<>();
+        try {
+            for (ConditionRow row : rows) {
+                conditions.add(row.buildCondition());
+            }
+        } catch (IllegalArgumentException ex) {
+            AppContext.getInstance().showToast(Toast.error("Condition Error", ex.getMessage(), null));
+            return null;
+        }
+        Map<String, Integer> signatures = new HashMap<>();
+        for (Condition condition : conditions) {
+            signatures.merge(ConditionRow.signatureOf(condition), 1, Integer::sum);
+        }
+        if (signatures.values().stream().anyMatch(count -> count > 1)) {
+            AppContext.getInstance().showToast(Toast.error("Validation Error",
+                    "Remove duplicate rules before saving.", null));
+            return null;
+        }
+        return conditions;
+    }
+
+    private List<ConditionRow> collectRows(VBox rowsContainer) {
+        List<ConditionRow> rows = new ArrayList<>();
+        for (Node child : rowsContainer.getChildren()) {
+            if (child instanceof ConditionRow row) {
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private void renderDiffChips(FlowPane chips, List<Condition> previousRules, List<Condition> currentRules,
+                                 int currentVersionNumber) {
+        chips.getChildren().clear();
+        if (previousRules == null) {
+            chips.setVisible(false);
+            chips.setManaged(false);
+            return;
+        }
+        chips.setVisible(true);
+        chips.setManaged(true);
+        if (currentVersionNumber <= 1) {
+            chips.getChildren().add(StatusBadge.info("Initial version"));
+            return;
+        }
+
+        Map<String, String> previous = clausesBySignature(previousRules);
+        Map<String, String> current = clausesBySignature(currentRules);
+        for (Map.Entry<String, String> entry : current.entrySet()) {
+            if (!previous.containsKey(entry.getKey())) {
+                chips.getChildren().add(StatusBadge.pass("+ " + entry.getValue()));
+            }
+        }
+        for (Map.Entry<String, String> entry : previous.entrySet()) {
+            if (!current.containsKey(entry.getKey())) {
+                chips.getChildren().add(StatusBadge.fail("− " + entry.getValue()));
+            }
+        }
+        if (chips.getChildren().isEmpty()) {
+            String vs = currentVersionNumber > 1 ? " vs v" + (currentVersionNumber - 1) : " vs previous version";
+            chips.getChildren().add(StatusBadge.info("No rule changes" + vs));
+        }
+    }
+
+    private Map<String, String> clausesBySignature(List<Condition> conditions) {
+        Map<String, String> clauses = new LinkedHashMap<>();
+        if (conditions == null) {
+            return clauses;
+        }
+        for (Condition condition : conditions) {
+            String signature = ConditionRow.signatureOf(condition);
+            if (signature != null) {
+                clauses.putIfAbsent(signature, ConditionRow.toPreviewClause(condition));
+            }
+        }
+        return clauses;
+    }
+
+    private static Label livePreviewLabel() {
+        Label preview = new Label("Eligible if …");
+        preview.setWrapText(true);
+        preview.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: -color-accent;");
+        return preview;
+    }
+
+    private static Label formErrorLabel() {
+        Label formError = new Label();
+        formError.setWrapText(true);
+        formError.setVisible(false);
+        formError.setManaged(false);
+        formError.getStyleClass().add("policy-form-error");
+        return formError;
     }
 
     @Override

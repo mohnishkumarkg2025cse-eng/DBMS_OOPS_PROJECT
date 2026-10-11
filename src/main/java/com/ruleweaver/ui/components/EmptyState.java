@@ -3,6 +3,7 @@ package com.ruleweaver.ui.components;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.SVGPath;
 
@@ -13,19 +14,21 @@ public class EmptyState extends VBox {
 
     public EmptyState(String iconSvg, String title, String description, String actionButtonText, Runnable onAction) {
         setAlignment(Pos.CENTER);
-        setSpacing(14);
-        setStyle("-fx-padding: 48px 24px 48px 24px;");
+        getStyleClass().add("empty-state");
 
         if (iconSvg != null) {
-            SVGPath icon = Icons.create(iconSvg, 1.4, "#5c607f");
-            getChildren().add(icon);
+            SVGPath icon = Icons.create(iconSvg, 1.0, "#5c607f");
+            icon.getStyleClass().add("empty-icon");
+            StackPane iconWrap = new StackPane(icon);
+            iconWrap.getStyleClass().add("empty-icon-wrap");
+            getChildren().add(iconWrap);
         }
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: -color-text-secondary;");
+        titleLabel.getStyleClass().add("empty-title");
 
         Label descLabel = new Label(description);
-        descLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -color-text-muted; -fx-text-alignment: center;");
+        descLabel.getStyleClass().add("empty-text");
         descLabel.setWrapText(true);
         descLabel.setMaxWidth(360);
 

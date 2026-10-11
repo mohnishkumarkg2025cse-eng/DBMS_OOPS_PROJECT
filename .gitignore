@@ -23,6 +23,13 @@ logs/
 *.class
 hs_err_pid*
 
+# Local configuration containing MongoDB credentials
+config.local.properties
+
+# Compiled Java files
+bin/
+target/
+
 # Operating systems
 .DS_Store
 Thumbs.db

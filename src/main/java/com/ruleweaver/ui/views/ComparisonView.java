@@ -163,9 +163,9 @@ public class ComparisonView implements BaseView {
         HBox row = new HBox(16);
         row.setAlignment(Pos.CENTER_LEFT);
 
-        HBox card1 = createSummaryMetric("DECISIONS CHANGED", changedCountLabel, "#89b4fa");
-        HBox card2 = createSummaryMetric("LOST ELIGIBILITY (Downgraded)", lostCountLabel, "#f38ba8");
-        HBox card3 = createSummaryMetric("GAINED ELIGIBILITY (Upgraded)", gainedCountLabel, "#a6e3a1");
+        HBox card1 = createSummaryMetric("DECISIONS CHANGED", changedCountLabel, "comparison-metric-accent");
+        HBox card2 = createSummaryMetric("LOST ELIGIBILITY (Downgraded)", lostCountLabel, "comparison-metric-danger");
+        HBox card3 = createSummaryMetric("GAINED ELIGIBILITY (Upgraded)", gainedCountLabel, "comparison-metric-success");
 
         HBox.setHgrow(card1, Priority.ALWAYS);
         HBox.setHgrow(card2, Priority.ALWAYS);
@@ -175,7 +175,7 @@ public class ComparisonView implements BaseView {
         return row;
     }
 
-    private HBox createSummaryMetric(String title, Label countLabel, String colorHex) {
+    private HBox createSummaryMetric(String title, Label countLabel, String valueStyleClass) {
         HBox card = new HBox(14);
         card.setAlignment(Pos.CENTER_LEFT);
         card.getStyleClass().addAll("card", "card-hoverable");
@@ -185,7 +185,7 @@ public class ComparisonView implements BaseView {
         Label titleLbl = new Label(title);
         titleLbl.getStyleClass().add("caption-label");
 
-        countLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: " + colorHex + ";");
+        countLabel.getStyleClass().addAll("comparison-metric-value", valueStyleClass);
 
         text.getChildren().addAll(titleLbl, countLabel);
         card.getChildren().add(text);

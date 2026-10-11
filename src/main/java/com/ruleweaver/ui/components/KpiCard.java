@@ -15,11 +15,14 @@ public class KpiCard extends VBox {
     private final Label valueLabel = new Label("0");
     private final Label titleLabel = new Label();
     private final Label subtextLabel = new Label();
+    private final Label deltaLabel = new Label("—");
 
     public KpiCard(String title, String initialValue, String subtext, String iconSvg, String accentColorHex) {
-        getStyleClass().addAll("card", "card-hoverable");
+        getStyleClass().addAll("kpi-card", "card-hoverable");
         setSpacing(12);
         Motion.attachHoverLift(this);
+        javafx.scene.layout.Region accentLine = new javafx.scene.layout.Region();
+        accentLine.getStyleClass().add("kpi-accent-line");
 
         // Header with title and icon badge
         HBox header = new HBox();
@@ -31,10 +34,10 @@ public class KpiCard extends VBox {
 
         HBox iconBadge = new HBox();
         iconBadge.setAlignment(Pos.CENTER);
-        iconBadge.setStyle("-fx-background-color: " + (accentColorHex != null ? accentColorHex + "22" : "rgba(255,255,255,0.06)") + "; "
-                + "-fx-background-radius: 10px; -fx-padding: 8px;");
+        iconBadge.getStyleClass().addAll("kpi-icon-box", iconStyleClass(accentColorHex, "kpi-icon-"));
         if (iconSvg != null) {
             SVGPath icon = Icons.create(iconSvg, 0.8, accentColorHex != null ? accentColorHex : "#89b4fa");
+            icon.getStyleClass().add(iconStyleClass(accentColorHex, "kpi-glyph-"));
             iconBadge.getChildren().add(icon);
         }
 
@@ -47,8 +50,9 @@ public class KpiCard extends VBox {
         // Subtext / Trend badge
         subtextLabel.setText(subtext);
         subtextLabel.getStyleClass().add("kpi-subtext");
+        deltaLabel.getStyleClass().addAll("delta-flat");
 
-        getChildren().addAll(header, valueLabel, subtextLabel);
+        getChildren().addAll(accentLine, header, valueLabel, deltaLabel, subtextLabel);
     }
 
     public void setValue(int number) {
@@ -65,5 +69,25 @@ public class KpiCard extends VBox {
 
     public void setSubtext(String subtext) {
         subtextLabel.setText(subtext);
+    }
+
+    public void setDeltaText(String text) {
+        deltaLabel.setText(text);
+    }
+
+    public void setDeltaStyle(String styleClass) {
+        deltaLabel.getStyleClass().removeAll("delta-up", "delta-down", "delta-flat");
+        deltaLabel.getStyleClass().add(styleClass);
+    }
+
+    private static String iconStyleClass(String color, String prefix) {
+        if (color == null) return prefix + "accent";
+        return switch (color.toLowerCase()) {
+            case "#a6e3a1" -> prefix + "success";
+            case "#f38ba8" -> prefix + "danger";
+            case "#f9e2af" -> prefix + "warning";
+            case "#74c7ec" -> prefix + "info";
+            default -> prefix + "accent";
+        };
     }
 }

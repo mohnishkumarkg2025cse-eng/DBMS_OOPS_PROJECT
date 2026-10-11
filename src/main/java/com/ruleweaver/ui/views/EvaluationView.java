@@ -146,7 +146,7 @@ public class EvaluationView implements BaseView {
         // Filter Toggle Buttons: All / Pass / Fail
         HBox toggleGroup = new HBox(4);
         toggleGroup.setAlignment(Pos.CENTER);
-        toggleGroup.setStyle("-fx-background-color: rgba(255,255,255,0.04); -fx-background-radius: 10px; -fx-padding: 3px;");
+        toggleGroup.getStyleClass().add("evaluation-filter-group");
 
         Button allBtn = new Button("All");
         allBtn.getStyleClass().add("btn-secondary");
@@ -169,9 +169,15 @@ public class EvaluationView implements BaseView {
 
     private void applyFilter(String filter, Button active, Button... inactives) {
         this.currentFilter = filter;
-        active.setStyle("-fx-background-color: -color-accent; -fx-text-fill: #11111b; -fx-font-weight: 700;");
+        active.getStyleClass().remove("evaluation-filter-inactive");
+        if (!active.getStyleClass().contains("evaluation-filter-active")) {
+            active.getStyleClass().add("evaluation-filter-active");
+        }
         for (Button b : inactives) {
-            b.setStyle("-fx-background-color: transparent; -fx-text-fill: -color-text-secondary;");
+            b.getStyleClass().remove("evaluation-filter-active");
+            if (!b.getStyleClass().contains("evaluation-filter-inactive")) {
+                b.getStyleClass().add("evaluation-filter-inactive");
+            }
         }
 
         if (filteredList != null) {
@@ -453,18 +459,14 @@ public class EvaluationView implements BaseView {
         // Verdict Banner
         HBox verdictBanner = new HBox(10);
         verdictBanner.setAlignment(Pos.CENTER_LEFT);
-        verdictBanner.setStyle("-fx-background-radius: 12px; -fx-padding: 12px 16px 12px 16px; "
-                + (result.isOverallDecision() 
-                        ? "-fx-background-color: rgba(166,227,161,0.12); -fx-border-color: rgba(166,227,161,0.3); -fx-border-radius: 12px; -fx-border-width: 1px;"
-                        : "-fx-background-color: rgba(243,139,168,0.12); -fx-border-color: rgba(243,139,168,0.3); -fx-border-radius: 12px; -fx-border-width: 1px;"));
+        verdictBanner.getStyleClass().add(result.isOverallDecision() ? "verdict-banner-pass" : "verdict-banner-fail");
 
         SVGPath verdictIcon = Icons.create(result.isOverallDecision() ? Icons.CHECK : Icons.CLOSE, 0.9,
                 result.isOverallDecision() ? "#a6e3a1" : "#f38ba8");
 
         VBox verdictTexts = new VBox(2);
         Label verdictTitle = new Label(result.isOverallDecision() ? "VERDICT: ELIGIBLE (ACCEPTED)" : "VERDICT: NOT ELIGIBLE (REJECTED)");
-        verdictTitle.setStyle("-fx-font-weight: 800; -fx-font-size: 13px; -fx-text-fill: " 
-                + (result.isOverallDecision() ? "#a6e3a1;" : "#f38ba8;"));
+        verdictTitle.getStyleClass().add(result.isOverallDecision() ? "verdict-title-pass" : "verdict-title-fail");
 
         int total = result.getConditionResults().size();
         int failed = result.getFailedConditions().size();
@@ -483,8 +485,7 @@ public class EvaluationView implements BaseView {
         VBox conditionCards = new VBox(10);
         for (ConditionResult cr : result.getConditionResults()) {
             VBox card = new VBox(8);
-            card.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-background-radius: 10px; "
-                    + "-fx-padding: 12px 14px 12px 14px; -fx-border-color: -color-border-subtle; -fx-border-radius: 10px; -fx-border-width: 1px;");
+            card.getStyleClass().add("evaluation-condition-card");
 
             HBox topRow = new HBox(8);
             topRow.setAlignment(Pos.CENTER_LEFT);
@@ -525,7 +526,6 @@ public class EvaluationView implements BaseView {
 
         ScrollPane scroll = new ScrollPane(conditionCards);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         Button doneBtn = new Button("Done");

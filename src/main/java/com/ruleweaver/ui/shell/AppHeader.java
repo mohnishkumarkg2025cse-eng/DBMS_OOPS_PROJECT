@@ -37,8 +37,7 @@ public class AppHeader extends HBox {
         // Active Policy / Version indicator chip
         HBox policyChip = new HBox(6);
         policyChip.setAlignment(Pos.CENTER);
-        policyChip.setStyle("-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 20px; "
-                + "-fx-border-color: -color-border; -fx-border-radius: 20px; -fx-border-width: 1px; -fx-padding: 5px 14px 5px 14px;");
+        policyChip.getStyleClass().add("app-header-policy-chip");
 
         SVGPath policyIcon = Icons.create(Icons.POLICIES, 0.65, "#89b4fa");
         policyBadge.setStyle("-fx-font-size: 11px; -fx-font-weight: 600; -fx-text-fill: -color-text-primary;");

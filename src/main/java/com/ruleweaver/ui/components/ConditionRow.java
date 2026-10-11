@@ -44,6 +44,8 @@ public class ConditionRow extends VBox {
     private final HBox numericContainer = new HBox(8);
     private final HBox skillContainer = new HBox(8);
     private Runnable validationListener = () -> {};
+    private String lastErrorMessage = "";
+    private boolean shakeOnNewError;
 
     public ConditionRow(Consumer<ConditionRow> onRemove) {
         setSpacing(6);
@@ -60,6 +62,23 @@ public class ConditionRow extends VBox {
         fieldBox.getItems().addAll("gpa", "interviewScore");
         fieldBox.setValue("gpa");
         fieldBox.setPrefWidth(140);
+        fieldBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(String field) {
+                return fieldLabel(field);
+            }
+
+            @Override
+            public String fromString(String label) {
+                if ("Interview Score".equals(label)) {
+                    return "interviewScore";
+                }
+                if ("GPA".equalsIgnoreCase(label)) {
+                    return "gpa";
+                }
+                return label;
+            }
+        });
 
         operatorBox.getItems().addAll(Operator.values());
         operatorBox.setValue(Operator.GREATER_THAN_OR_EQUAL);
@@ -105,7 +124,7 @@ public class ConditionRow extends VBox {
         errorLabel.setManaged(false);
         errorLabel.setVisible(false);
         errorLabel.setWrapText(true);
-        errorLabel.setStyle("-fx-text-fill: #f38ba8; -fx-font-size: 11px; -fx-font-weight: 600;");
+        errorLabel.getStyleClass().add("condition-error-text");
 
         getChildren().addAll(line, errorLabel);
 
@@ -119,6 +138,7 @@ public class ConditionRow extends VBox {
         operatorBox.valueProperty().addListener((obs, oldVal, newVal) -> notifyValidationListener());
         updateVisibility(Type.NUMERIC);
         refreshValidationState();
+        shakeOnNewError = true;
     }
 
     public void setValidationChangeListener(Runnable validationListener) {
@@ -126,17 +146,26 @@ public class ConditionRow extends VBox {
     }
 
     public void setErrorMessage(String message) {
-        if (message == null || message.isBlank()) {
+        String normalized = message == null ? "" : message.trim();
+        if (normalized.isEmpty()) {
+            lastErrorMessage = "";
             errorLabel.setVisible(false);
             errorLabel.setManaged(false);
             errorLabel.setText("");
-            setStyle("");
+            getStyleClass().remove("condition-row-error");
             return;
         }
-        errorLabel.setText(message);
+        boolean isNewError = !normalized.equals(lastErrorMessage);
+        lastErrorMessage = normalized;
+        errorLabel.setText(normalized);
         errorLabel.setVisible(true);
         errorLabel.setManaged(true);
-        setStyle("-fx-padding: 0 0 0 2; -fx-border-color: rgba(243, 139, 168, 0.35); -fx-border-width: 0 0 0 2; -fx-background-color: rgba(243, 139, 168, 0.05);");
+        if (!getStyleClass().contains("condition-row-error")) {
+            getStyleClass().add("condition-row-error");
+        }
+        if (isNewError && shakeOnNewError) {
+            Motion.shake(this);
+        }
     }
 
     private void notifyValidationListener() {
@@ -188,6 +217,132 @@ public class ConditionRow extends VBox {
         return getValidationMessage() == null;
     }
 
+    /**
+     * Stable identity for exact-duplicate checks. Null when the row is too incomplete to compare.
+     */
+    public String getSignature() {
+        if (typeBox.getValue() == Type.NUMERIC) {
+            String field = fieldBox.getValue();
+            Operator op = operatorBox.getValue();
+            Double threshold = parseThreshold(thresholdField.getText());
+            if (field == null || field.isBlank() || op == null || threshold == null) {
+                return null;
+            }
+            return signature(field.trim(), op, threshold);
+        }
+        String skill = skillField.getText();
+        if (skill == null || skill.isBlank()) {
+            return null;
+        }
+        return skillSignature(skill.trim());
+    }
+
+    public String getPreviewClause() {
+        if (typeBox.getValue() == Type.NUMERIC) {
+            Double threshold = parseThreshold(thresholdField.getText());
+            return numericPreviewClause(fieldBox.getValue(), operatorBox.getValue(),
+                    threshold == null ? "…" : formatNumber(threshold));
+        }
+        String skill = skillField.getText() == null ? "" : skillField.getText().trim();
+        return skillPreviewClause(skill.isEmpty() ? "…" : skill);
+    }
+
+    public static String toPreviewSentence(java.util.List<Condition> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return "Eligible if …";
+        }
+        StringBuilder sentence = new StringBuilder("Eligible if ");
+        for (int i = 0; i < conditions.size(); i++) {
+            if (i > 0) {
+                sentence.append(" AND ");
+            }
+            sentence.append(toPreviewClause(conditions.get(i)));
+        }
+        return sentence.toString();
+    }
+
+    public static String toPreviewClause(Condition condition) {
+        if (condition instanceof NumericCondition numeric) {
+            return numericPreviewClause(numeric.getFieldName(), numeric.getOperator(),
+                    formatNumber(numeric.getThreshold()));
+        }
+        if (condition instanceof SkillCondition skill) {
+            return skillPreviewClause(skill.getRequiredSkill());
+        }
+        return condition == null || condition.getMessage() == null ? "…" : condition.getMessage();
+    }
+
+    public static String signatureOf(Condition condition) {
+        if (condition instanceof NumericCondition numeric) {
+            return signature(numeric.getFieldName(), numeric.getOperator(), numeric.getThreshold());
+        }
+        if (condition instanceof SkillCondition skill) {
+            return skillSignature(skill.getRequiredSkill());
+        }
+        return condition == null ? null : "OTHER|" + condition.getMessage();
+    }
+
+    public static String fieldLabel(String field) {
+        if (field == null || field.isBlank()) {
+            return "…";
+        }
+        if ("gpa".equals(field)) {
+            return "GPA";
+        }
+        if ("interviewScore".equals(field)) {
+            return "Interview Score";
+        }
+        return field.substring(0, 1).toUpperCase() + field.substring(1);
+    }
+
+    public static String operatorPhrase(Operator operator) {
+        if (operator == null) {
+            return "is";
+        }
+        return switch (operator) {
+            case GREATER_THAN_OR_EQUAL -> "is at least";
+            case LESS_THAN_OR_EQUAL -> "is at most";
+            case GREATER_THAN -> "is greater than";
+            case LESS_THAN -> "is less than";
+            case EQUALS -> "equals";
+            case NOT_EQUALS -> "is not";
+        };
+    }
+
+    private static String numericPreviewClause(String field, Operator operator, String thresholdText) {
+        return fieldLabel(field) + " " + operatorPhrase(operator) + " " + thresholdText;
+    }
+
+    private static String skillPreviewClause(String skill) {
+        return "has skill " + skill;
+    }
+
+    private static String signature(String field, Operator operator, double threshold) {
+        return "NUMERIC|" + field + "|" + operator + "|" + Double.toString(threshold);
+    }
+
+    private static String skillSignature(String skill) {
+        return "SKILL|" + skill;
+    }
+
+    private static Double parseThreshold(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String formatNumber(double value) {
+        if (value == (long) value) {
+            return String.valueOf((long) value);
+        }
+        return String.valueOf(value);
+    }
+
     private void updateVisibility(Type type) {
         if (type == Type.NUMERIC) {
             numericContainer.setVisible(true);
@@ -214,6 +369,7 @@ public class ConditionRow extends VBox {
             skillField.setText(sc.getRequiredSkill());
         }
         refreshValidationState();
+        notifyValidationListener();
     }
 
     public Condition buildCondition() {

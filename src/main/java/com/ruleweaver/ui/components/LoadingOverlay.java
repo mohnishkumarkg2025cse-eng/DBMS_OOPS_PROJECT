@@ -26,9 +26,7 @@ public class LoadingOverlay extends StackPane {
 
         VBox box = new VBox(14);
         box.setAlignment(Pos.CENTER);
-        box.setStyle("-fx-background-color: -color-card; -fx-background-radius: 16px; "
-                + "-fx-border-color: -color-card-border; -fx-border-radius: 16px; -fx-border-width: 1px; "
-                + "-fx-padding: 24px 36px 24px 36px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.6), 24, 0, 0, 8);");
+        box.getStyleClass().add("loading-overlay-card");
 
         messageLabel.setText(initialMessage != null ? initialMessage : "Loading...");
         messageLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: -color-text-primary;");

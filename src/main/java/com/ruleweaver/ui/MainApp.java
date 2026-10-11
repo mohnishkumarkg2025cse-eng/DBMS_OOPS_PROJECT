@@ -17,8 +17,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.net.URL;
-
 /**
  * Main JavaFX Application Shell & Composition Root for RuleWeaver X.
  */
@@ -48,9 +46,13 @@ public class MainApp extends Application {
         viewRouter = new ViewRouter(centerPane);
 
         // Views Instantiation
-        DashboardView dashboardView = new DashboardView();
+        PoliciesView policiesView = new PoliciesView(() ->
+                navigateTo(Sidebar.Destination.DASHBOARD));
+        DashboardView dashboardView = new DashboardView((policy, simulatedVersion) -> {
+            navigateTo(Sidebar.Destination.POLICIES);
+            policiesView.showNewVersionDraft(policy, simulatedVersion);
+        });
         ApplicantsView applicantsView = new ApplicantsView();
-        PoliciesView policiesView = new PoliciesView();
         EvaluationView evaluationView = new EvaluationView();
         ComparisonView comparisonView = new ComparisonView();
 
@@ -63,8 +65,7 @@ public class MainApp extends Application {
         // Sidebar Navigation
         Sidebar sidebar = new Sidebar(
                 dest -> {
-                    viewRouter.navigateTo(dest);
-                    header.setTitle(dest.getTitle(), getSubtitleFor(dest));
+                    navigateTo(dest);
                 },
                 this::handleSeedDemoData,
                 this::confirmClearDemoData
@@ -100,12 +101,7 @@ public class MainApp extends Application {
 
         // 2. Scene & Stylesheet
         Scene scene = new Scene(rootLayer, 1220, 780);
-        URL cssUrl = getClass().getResource("/css/style.css");
-        if (cssUrl != null) {
-            scene.getStylesheets().add(cssUrl.toExternalForm());
-        } else {
-            System.err.println("Warning: /css/style.css resource not found!");
-        }
+        Theme.applyTo(scene);
 
         // 3. Stage Setup
         primaryStage.setTitle("RuleWeaver X — Explainable Decision Engine & Time Machine");
@@ -147,6 +143,13 @@ public class MainApp extends Application {
                     null
             ));
         });
+    }
+
+    private void navigateTo(Sidebar.Destination destination) {
+        viewRouter.navigateTo(destination);
+        if (header != null) {
+            header.setTitle(destination.getTitle(), getSubtitleFor(destination));
+        }
     }
 
     private void connectAndLoadData(Stage owner) {

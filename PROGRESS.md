@@ -8,13 +8,13 @@ RuleWeaver X is an explainable rule-based decision system for evaluating applica
 
 | Phase | Scope | Status | Verified how |
 |---|---|---|---|
-| Backend + tests | Domain models, engine, BSON mappers, Mongo repositories, unit/integration tests | Partial | 12 non-Atlas tests passed; 3 Atlas tests errored because the saved Mongo URI fails authentication |
+| Backend + tests | Domain models, engine, BSON mappers, Mongo repositories, unit/integration tests | Partial | `mvn clean test`: 16 run, 0 failures/errors, 3 Atlas integration tests skipped because the endpoint was unreachable |
 | UI shell/CSS/components | `MainApp`, sidebar/router/header, shared controls and dark CSS | Partial | `mvn clean compile`; rendered theme needs manual check |
 | Phase 3 Applicants | Table, search, create/edit/delete modal, async repository calls | Partial | Compile/test only; CRUD and clicks need manual check |
 | Foundation changes A–J | Configuration, condition fields, policy persistence, packaging, seed data, shortcuts | Partial | Test/compile/package were run; Atlas/UI behavior needs manual check |
-| Phase 4 Policies | Policy master/detail, immutable versions, persisted active version, version history | Partial | Service/schema unit tests pass; UI needs manual check |
+| Phase 4 Policies | Policy master/detail, immutable versions, persisted active version, version history, rule-builder polish, simulator link/draft | Partial | Unit tests pass; rule-builder and simulator UI need manual check |
 | Phase 5 Evaluation | Policy/version evaluation, append-only result persistence, progress/cancel/retry/history | Partial | Service and mapper unit tests pass; Atlas persistence/UI need manual check |
-| Phase 6 Dashboard | KPI cards and charts from stored results scoped to selected policy/version | Partial | Compiles; UI and Atlas-backed refresh need manual check |
+| Phase 6 Dashboard | Responsive KPI/chart/evaluation/attention widgets from stored results; background Evaluate All and read-only what-if simulator | Partial | `mvn clean compile` and `mvn clean test`: passed; rendered layout, interactions, and Atlas-backed behavior need manual check |
 | Phase 7 Comparison | Compare stored results for selected policy versions | Partial | Compiles; UI and Atlas-backed behavior need manual check |
 | Phase 8 Polish | Dark control/popup theme and motion helpers | Partial | `mvn clean compile`; rendered appearance needs manual check |
 | Packaging/deployment | Shade plugin, `MainLauncher`, JavaFX platform profiles | Done | `mvn clean package -DskipTests`; shaded JAR was launched briefly and started |
@@ -52,7 +52,7 @@ com.ruleweaver
 
 - `AppContext` is the composition root/state holder. It owns a four-thread daemon executor, observable applicants/policies/results, selected policy/version properties, repositories, and services. It starts in-memory and swaps to Mongo repositories after a successful ping.
 - `ViewRouter` replaces the centre view and calls `onHide()`/`onShow()` on `BaseView` instances.
-- Views: `DashboardView` builds KPI/charts; `ApplicantsView` manages applicant table/modals; `PoliciesView` is a basic policy/version master-detail; `EvaluationView` evaluates and shows results; `ComparisonView` compares versions.
+- Views: `DashboardView` builds KPI/charts; `ApplicantsView` manages applicant table/modals; `PoliciesView` is policy/version master-detail with a live rule builder (preview sentence, row add/remove/reorder, Save disabled until valid, diff chips vs previous version); `EvaluationView` evaluates and shows results; `ComparisonView` compares versions.
 - `PolicyService` creates policies/versions, evaluates applicants, and compares versions. It retains a reflection-compatible constructor path. `ComparisonService` compares evaluation results for two versions.
 - `MongoPolicyRepository` persists `policies` and `policy_versions`; `ApplicantRepository`, `PolicyVersionRepository`, and `EvaluationRepository` use Mongo `Document`; in-memory repositories support local/demo use.
 - `ApplicantDocumentMapper`, `EvaluationResultDocumentMapper`, and `ConditionDocumentMapper` map between Java models and BSON documents.
@@ -94,8 +94,12 @@ Additive/default-compatible fields: `Policy.category` defaults to `Other`; `Poli
 - `Policy.activeVersionNumber` is saved on the policy document. Legacy policies with no active-version value continue to resolve to their latest version.
 - Evaluation runs are append-only. `PolicyService.evaluateApplicants` accumulates a run, reports per-applicant progress, checks cancellation, and batch-inserts results only after the full run completes.
 - `EvaluationView`, `DashboardView`, and `ComparisonView` now use `PolicyService`/stored results rather than the evaluation view or dashboard recomputing directly through `DecisionEngine`. `AppContext.resultsChangedProperty()` signals successful persisted runs.
+- The Dashboard what-if simulator deep-clones conditions through `ConditionDocumentMapper`, changes only the selected numeric threshold, and evaluates in a background `Task`. It reads applicants and saved results but performs no writes. Delta uses saved baseline decisions for applicants with matching stored results; applicants without a saved baseline are excluded from the comparison.
+- Dashboard KPI, pie, compliance, recent-evaluation, and attention widgets each load in their own background `Task`, with skeleton/empty/error-retry states. The responsive GridPane uses two columns below 1300px and three at/above it; Evaluate All reports progress and supports cancellation through `PolicyService`.
+- The Dashboard donut overlays mouse-transparent center labels on the PieChart; compliance bars and outcome slices expose tooltips. Visual sizing and click behavior have not been observed in a live window.
+- “Save as New Version” routes to Policies and opens the existing version editor prefilled with the simulated conditions; saving remains a separate user action.
 - Numeric operators are exactly the six values in `Operator`; there is no `BETWEEN` operator.
-- `CompositeCondition` supports `AND`/`OR`; an any-of skill UI builder is UNKNOWN - current `ConditionRow` only builds numeric or one skill condition.
+- `CompositeCondition` supports `AND`/`OR`; an any-of skill UI builder is UNKNOWN - current `ConditionRow` only builds numeric or one skill condition. The builder preview joins those rows with AND (for example `Eligible if GPA is at least 8.0 AND Interview Score is at least 70 AND has skill Java`). Save stays disabled until there is at least one rule, no exact duplicates, numeric GPA 0–10 / interview 0–100, and (for new policies) a name. New inline errors shake via `Motion.shake`. Diff chips compare the draft or displayed version against the previous version.
 - Mandatory/Preferred severity is UNKNOWN - no severity model exists in the code.
 - Field registry design is UNKNOWN - no `FieldRegistry` exists; `Applicant.getNumericFieldValue()` currently branches on built-in fields/custom attributes.
 - Atlas-backed `ApplicantRepositoryTest` uses JUnit assumptions and skips without `RULEWEAVER_MONGO_URI`; it uses `ruleweaver_test` and cleans its generated IDs.
@@ -117,8 +121,10 @@ Additive/default-compatible fields: `Policy.category` defaults to `Other`; `Poli
 - `PoliciesView.java`: policy list dark styling, ellipsis, and horizontal-scroll suppression were compiled but not visually inspected.
 - `Theme.java`: stylesheet attachment for Dialog/Alert/Tooltip popup scenes needs manual rendered verification.
 - Full UI behavior for progress/cancel/retry, persisted version selection, history counts, dashboard refresh, and comparison still needs manual verification.
+- Rule builder live preview, Save-disabled validation, duplicate shake, reorder, and version diff chips: needs manual check (`PoliciesView` / `ConditionRow`).
+- Dashboard layout, responsive wrapping, KPI/chart/table/attention states, Evaluate All progress/cancel/retry, what-if controls/results/flips, Policies link, and prefilled new-version draft: needs manual check. A selected version must have stored results to provide a real baseline.
 - Evaluation export and the broader audit-log/archive/delete/search workflows are not implemented.
-- The saved Mongo URI is currently rejected by Atlas authentication. The three Atlas integration tests therefore errored instead of skipping; rotate/update the local or environment credential before relying on Mongo behavior.
+- Atlas connectivity was unavailable during the latest test run, so all three Atlas integration tests were skipped. Successful Atlas-backed behavior remains unverified.
 
 ## Security issues
 
@@ -131,7 +137,11 @@ Additive/default-compatible fields: `Policy.category` defaults to `Other`; `Poli
 
 | Command | Result actually observed |
 |---|---|
-| `mvn clean test` | Failed in 3 Atlas integration tests with Mongo authentication errors; 12 other tests passed |
+| `mvn clean test` | BUILD SUCCESS: Tests run 15, Failures 0, Errors 0, Skipped 3 (`ApplicantRepositoryTest` Atlas cases skipped) |
+| `mvn -Dtest=WhatIfSimulatorTest test` | BUILD SUCCESS: 1 test, 0 failures/errors/skips |
+| `mvn clean test` (after what-if simulator) | BUILD SUCCESS: Tests run 16, Failures 0, Errors 0, Skipped 3 (`ApplicantRepositoryTest` Atlas cases skipped) |
+| `mvn clean compile` (Dashboard rebuild) | BUILD SUCCESS |
+| `mvn clean test` (Dashboard rebuild) | BUILD SUCCESS: Tests run 16, Failures 0, Errors 0, Skipped 0 |
 | `mvn "-Dtest=ConditionDocumentMapperTest,ApplicantDocumentMapperTest,EvaluationResultDocumentMapperTest,PolicyServicePersistenceTest,DatabaseInitializerSchemaTest" clean test` | Passed: 12 tests, 0 failures/errors/skips |
 | `mvn clean package -DskipTests` | Passed; shaded `target/ruleweaver-x-1.0-SNAPSHOT.jar` produced (tests were run separately above) |
 | `java -jar target/ruleweaver-x-1.0-SNAPSHOT.jar` | JAR was launched briefly and started, then only that test process was stopped |
@@ -150,11 +160,12 @@ Additive/default-compatible fields: `Policy.category` defaults to `Other`; `Poli
 
 ## Next steps
 
-1. Fix/rotate the saved Mongo credential, then rerun `mvn clean test`; verify the Atlas CRUD/policy/evaluation flows with a non-production database.
-2. Manually verify evaluation progress and cancellation, retry/error toast, saved history after restart, active-version persistence/history counts, dashboard scoping/refresh, and comparison of two evaluated versions.
-3. Verify existing Atlas collection validators/indexes by running `DatabaseInitializer` with appropriate privileges; check legacy documents remain readable.
-4. Complete the remaining policy workflows (category/archive/search, broader condition builder, audit logging) and evaluation export if still required.
-5. Perform Phase 8 manual accessibility/theme/shortcut QA; then add CI/CD and deployment documentation after a repeatable Atlas-free test path is established.
+1. Manually verify the Dashboard at widths below and above 1300px: header wraps without horizontal scrolling, five KPI cards appear, donut/bar tooltips work, recent/attention empty and populated states display, Evaluate All progress/cancel/retry works, and what-if shows pass delta/flips; verify the Policies link and prefilled new-version draft.
+2. Restore Atlas connectivity, then verify CRUD/policy/evaluation flows with a non-production database; Atlas integration tests are currently skipped when the endpoint is unreachable.
+3. Manually verify evaluation progress and cancellation, retry/error toast, saved history after restart, active-version persistence/history counts, dashboard scoping/refresh, and comparison of two evaluated versions.
+4. Verify existing Atlas collection validators/indexes by running `DatabaseInitializer` with appropriate privileges; check legacy documents remain readable.
+5. Complete remaining policy workflows (category/archive/search, composite/any-of skill builder, audit logging) and evaluation export if still required.
+6. Perform Phase 8 manual accessibility/theme/shortcut QA; then add CI/CD and deployment documentation after a repeatable Atlas-free test path is established.
 
 ## Rules for any agent working here
 
@@ -174,7 +185,10 @@ After each phase, update the status table, decisions/scope cuts, known bugs, and
 
 ## Changelog
 
-- 2026-10-11 — Uncommitted core-loop update: standardized evaluation collection/schema, batch append-only persistence, service-driven progress/cancel/retry/history, persisted active policy versions and history counts, stored-result dashboard/comparison refresh; 12 non-Atlas tests pass and `mvn clean package -DskipTests` succeeds. Full `mvn clean test` remains blocked by Atlas authentication errors from saved local configuration. UI behavior needs manual verification.
+- 2026-10-11 — Uncommitted Dashboard what-if simulator: background, read-only evaluation on cloned conditions; version/numeric-rule/threshold controls; saved-result delta and applicant flips; Policies link and prefilled new-version draft. `mvn -Dtest=WhatIfSimulatorTest test` passed (1 test) and `mvn clean test` passed (16 run, 0 fail, 0 error, 3 skipped). UI needs manual check.
+- 2026-10-11 — Uncommitted Dashboard rebuild: responsive two/three-column layout, header controls, five KPI cards, donut and horizontal compliance charts, recent evaluations, needs-attention list, per-widget background loading/empty/error-retry states, Evaluate All progress/cancel, and retained read-only what-if simulator. `mvn clean compile` passed; `mvn clean test` passed (16 run, 0 failures/errors/skips). UI and interaction behavior need manual check; no live visual observation was made.
+- 2026-10-11 — Uncommitted rule-builder polish in `ConditionRow` / `PoliciesView`: live AND preview, duplicate/range validation with Save disabled and `Motion.shake`, add/remove/reorder rows, diff chips vs previous version. `mvn clean test` BUILD SUCCESS (15 run, 0 fail, 0 error, 3 skipped). UI needs manual check.
+- 2026-10-11 — Uncommitted core-loop update: standardized evaluation collection/schema, batch append-only persistence, service-driven progress/cancel/retry/history, persisted active policy versions and history counts, stored-result dashboard/comparison refresh; 12 non-Atlas tests pass and `mvn clean package -DskipTests` succeeds. Atlas integration tests are skipped when the endpoint is unreachable. UI behavior needs manual verification.
 - 2026-10-10 — `4317107`: persistence layer and integration tests added (Git history).
 - 2026-10-10 — `7001084`: `Main.java` entry point added (Git history).
 - 2026-10-10 — `bc072cd`: codebase/domain/persistence consolidation (Git history).

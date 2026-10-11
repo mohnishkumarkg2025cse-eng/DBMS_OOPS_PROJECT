@@ -45,8 +45,23 @@ public class Icons {
         path.setScaleX(scale);
         path.setScaleY(scale);
         if (fillHex != null) {
-            path.setStyle("-fx-fill: " + fillHex + ";");
+            path.getStyleClass().add(fillStyleClass(fillHex));
         }
         return path;
+    }
+
+    private static String fillStyleClass(String color) {
+        return switch (color.toLowerCase()) {
+            case "#11111b" -> "icon-fill-background";
+            case "#9aa0c3" -> "icon-fill-secondary";
+            case "#5c607f" -> "icon-fill-disabled";
+            case "#a6e3a1" -> "icon-fill-success";
+            case "#f38ba8" -> "icon-fill-danger";
+            case "#f9e2af" -> "icon-fill-warning";
+            case "#74c7ec" -> "icon-fill-info";
+            case "#cdd6f4" -> "icon-fill-primary";
+            case "#cba6f7" -> "icon-fill-accent-end";
+            default -> "icon-fill-accent";
+        };
     }
 }

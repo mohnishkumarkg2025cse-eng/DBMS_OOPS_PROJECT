@@ -29,22 +29,22 @@ public class StatusBadge extends HBox {
             case PASS -> {
                 getStyleClass().add("badge-pass");
                 label.getStyleClass().add("badge-pass-text");
-                dot.setStyle("-fx-fill: #a6e3a1; -fx-effect: dropshadow(three-pass-box, rgba(166,227,161,0.6), 5, 0, 0, 0);");
+                dot.getStyleClass().add("badge-dot-pass");
             }
             case FAIL -> {
                 getStyleClass().add("badge-fail");
                 label.getStyleClass().add("badge-fail-text");
-                dot.setStyle("-fx-fill: #f38ba8; -fx-effect: dropshadow(three-pass-box, rgba(243,139,168,0.6), 5, 0, 0, 0);");
+                dot.getStyleClass().add("badge-dot-fail");
             }
             case WARNING -> {
                 getStyleClass().add("badge-warning");
                 label.getStyleClass().add("badge-warning-text");
-                dot.setStyle("-fx-fill: #f9e2af; -fx-effect: dropshadow(three-pass-box, rgba(249,226,175,0.6), 5, 0, 0, 0);");
+                dot.getStyleClass().add("badge-dot-warning");
             }
             case INFO -> {
                 getStyleClass().add("badge-info");
                 label.getStyleClass().add("badge-info-text");
-                dot.setStyle("-fx-fill: #74c7ec; -fx-effect: dropshadow(three-pass-box, rgba(116,199,236,0.6), 5, 0, 0, 0);");
+                dot.getStyleClass().add("badge-dot-info");
             }
         }
 

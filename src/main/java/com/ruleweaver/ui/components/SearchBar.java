@@ -19,14 +19,12 @@ public class SearchBar extends HBox {
     public SearchBar(String promptText) {
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(8);
-        setStyle("-fx-background-color: -color-input-bg; -fx-background-radius: 10px; "
-                + "-fx-border-color: -color-border; -fx-border-radius: 10px; -fx-border-width: 1px; "
-                + "-fx-padding: 2px 10px 2px 12px;");
+        getStyleClass().add("search-bar");
 
         SVGPath searchIcon = Icons.create(Icons.SEARCH, 0.7, "#9aa0c3");
 
         textField.setPromptText(promptText);
-        textField.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 8px 4px 8px 4px;");
+        textField.getStyleClass().add("search-bar-field");
         HBox.setHgrow(textField, Priority.ALWAYS);
 
         SVGPath closeIcon = Icons.create(Icons.CLOSE, 0.6, "#9aa0c3");
@@ -39,15 +37,8 @@ public class SearchBar extends HBox {
 
         // Highlight parent border when textfield is focused
         textField.focusedProperty().addListener((obs, oldVal, focused) -> {
-            if (focused) {
-                setStyle("-fx-background-color: -color-input-focus; -fx-background-radius: 10px; "
-                        + "-fx-border-color: -color-accent; -fx-border-radius: 10px; -fx-border-width: 1px; "
-                        + "-fx-padding: 2px 10px 2px 12px; -fx-effect: dropshadow(three-pass-box, -color-accent-glow, 8, 0, 0, 0);");
-            } else {
-                setStyle("-fx-background-color: -color-input-bg; -fx-background-radius: 10px; "
-                        + "-fx-border-color: -color-border; -fx-border-radius: 10px; -fx-border-width: 1px; "
-                        + "-fx-padding: 2px 10px 2px 12px;");
-            }
+            getStyleClass().remove("search-bar-focused");
+            if (focused) getStyleClass().add("search-bar-focused");
         });
     }
 
