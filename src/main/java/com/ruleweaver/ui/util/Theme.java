@@ -1,7 +1,9 @@
 package com.ruleweaver.ui.util;
 
+import atlantafx.base.theme.PrimerDark;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.components.Toast;
+import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -24,11 +26,16 @@ import java.net.URL;
 public final class Theme {
 
     private static final String STYLESHEET_PATH = "/css/style.css";
+    private static final String ATLANTA_FX_THEME = new PrimerDark().getUserAgentStylesheet();
     private static final String WINDOW_HANDLER_KEY = Theme.class.getName() + ".windowHandler";
     private static String stylesheetUrl;
     private static boolean missingLogged;
     private static boolean missingToastScheduled;
     private static boolean windowListenerInstalled;
+
+    static {
+        Application.setUserAgentStylesheet(ATLANTA_FX_THEME);
+    }
 
     private Theme() {
     }

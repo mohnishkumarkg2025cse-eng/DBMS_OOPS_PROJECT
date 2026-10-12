@@ -6,7 +6,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Integrated Search input bar with SVG search icon and clear button.
@@ -21,13 +21,13 @@ public class SearchBar extends HBox {
         setSpacing(8);
         getStyleClass().add("search-bar");
 
-        SVGPath searchIcon = Icons.create(Icons.SEARCH, 0.7, "#9aa0c3");
+        FontIcon searchIcon = Icons.create(Icons.SEARCH, 0.7, "#9aa0c3");
 
         textField.setPromptText(promptText);
         textField.getStyleClass().add("search-bar-field");
         HBox.setHgrow(textField, Priority.ALWAYS);
 
-        SVGPath closeIcon = Icons.create(Icons.CLOSE, 0.6, "#9aa0c3");
+        FontIcon closeIcon = Icons.create(Icons.CLOSE, 0.6, "#9aa0c3");
         clearBtn.setGraphic(closeIcon);
         clearBtn.getStyleClass().add("btn-icon");
         clearBtn.visibleProperty().bind(textField.textProperty().isNotEmpty());

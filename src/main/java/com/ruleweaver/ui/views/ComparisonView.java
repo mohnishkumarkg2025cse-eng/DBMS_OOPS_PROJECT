@@ -13,7 +13,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.List;
 
@@ -261,7 +261,7 @@ public class ComparisonView implements BaseView {
                     box.setAlignment(Pos.CENTER_LEFT);
 
                     StatusBadge v1Badge = diff.isV1Decision() ? StatusBadge.pass("vA: PASS") : StatusBadge.fail("vA: FAIL");
-                    SVGPath arrow = Icons.create(Icons.ARROW_RIGHT, 0.6, "#9aa0c3");
+                    FontIcon arrow = Icons.create(Icons.ARROW_RIGHT, 0.6, "#9aa0c3");
                     StatusBadge v2Badge = diff.isV2Decision() ? StatusBadge.pass("vB: PASS") : StatusBadge.fail("vB: FAIL");
 
                     box.getChildren().addAll(v1Badge, arrow, v2Badge);

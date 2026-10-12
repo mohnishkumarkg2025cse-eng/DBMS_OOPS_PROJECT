@@ -5,7 +5,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Metric KPI Card with icon, title, animated value count-up, and subtext badge.
@@ -36,7 +36,7 @@ public class KpiCard extends VBox {
         iconBadge.setAlignment(Pos.CENTER);
         iconBadge.getStyleClass().addAll("kpi-icon-box", iconStyleClass(accentColorHex, "kpi-icon-"));
         if (iconSvg != null) {
-            SVGPath icon = Icons.create(iconSvg, 0.8, accentColorHex != null ? accentColorHex : "#89b4fa");
+            FontIcon icon = Icons.create(iconSvg, 0.8, accentColorHex != null ? accentColorHex : "#89b4fa");
             icon.getStyleClass().add(iconStyleClass(accentColorHex, "kpi-glyph-"));
             iconBadge.getChildren().add(icon);
         }

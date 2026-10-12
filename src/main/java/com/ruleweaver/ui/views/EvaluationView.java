@@ -15,7 +15,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 import javafx.concurrent.Task;
 
 import java.time.format.DateTimeFormatter;
@@ -461,7 +461,7 @@ public class EvaluationView implements BaseView {
         verdictBanner.setAlignment(Pos.CENTER_LEFT);
         verdictBanner.getStyleClass().add(result.isOverallDecision() ? "verdict-banner-pass" : "verdict-banner-fail");
 
-        SVGPath verdictIcon = Icons.create(result.isOverallDecision() ? Icons.CHECK : Icons.CLOSE, 0.9,
+        FontIcon verdictIcon = Icons.create(result.isOverallDecision() ? Icons.CHECK : Icons.CLOSE, 0.9,
                 result.isOverallDecision() ? "#a6e3a1" : "#f38ba8");
 
         VBox verdictTexts = new VBox(2);
@@ -490,7 +490,7 @@ public class EvaluationView implements BaseView {
             HBox topRow = new HBox(8);
             topRow.setAlignment(Pos.CENTER_LEFT);
 
-            SVGPath icon = Icons.create(cr.isPassed() ? Icons.CHECK : Icons.CLOSE, 0.75,
+            FontIcon icon = Icons.create(cr.isPassed() ? Icons.CHECK : Icons.CLOSE, 0.75,
                     cr.isPassed() ? "#a6e3a1" : "#f38ba8");
 
             Label ruleName = new Label(cr.getConditionName());

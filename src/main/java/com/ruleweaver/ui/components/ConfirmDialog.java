@@ -6,7 +6,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Styled custom confirmation modal dialog replacing default OS alerts.
@@ -28,7 +28,7 @@ public class ConfirmDialog extends StackPane {
         HBox header = new HBox(12);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        SVGPath icon = Icons.create(isDestructive ? Icons.TRASH : Icons.INFO, 0.9, isDestructive ? "#f38ba8" : "#89b4fa");
+        FontIcon icon = Icons.create(isDestructive ? Icons.TRASH : Icons.INFO, 0.9, isDestructive ? "#f38ba8" : "#89b4fa");
         Label titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
         header.getChildren().addAll(icon, titleLabel);

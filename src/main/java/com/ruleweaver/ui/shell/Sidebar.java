@@ -1,5 +1,6 @@
 package com.ruleweaver.ui.shell;
 
+import atlantafx.base.theme.Styles;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.components.Icons;
 import javafx.geometry.Pos;
@@ -7,7 +8,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,15 +28,15 @@ public class Sidebar extends VBox {
         COMPARISON("Time Machine", Icons.COMPARISON);
 
         private final String title;
-        private final String iconSvg;
+        private final String iconName;
 
-        Destination(String title, String iconSvg) {
+        Destination(String title, String iconName) {
             this.title = title;
-            this.iconSvg = iconSvg;
+            this.iconName = iconName;
         }
 
         public String getTitle() { return title; }
-        public String getIconSvg() { return iconSvg; }
+        public String getIconName() { return iconName; }
     }
 
     private final Map<Destination, HBox> navItemMap = new HashMap<>();
@@ -92,7 +93,7 @@ public class Sidebar extends VBox {
         item.setAlignment(Pos.CENTER_LEFT);
         item.getStyleClass().add("nav-item");
 
-        SVGPath icon = Icons.create(dest.getIconSvg(), 0.8, "#9aa0c3");
+        FontIcon icon = Icons.create(dest.getIconName(), 0.8, "#9aa0c3");
         icon.getStyleClass().add("nav-icon");
 
         Label label = new Label(dest.getTitle());
@@ -122,7 +123,7 @@ public class Sidebar extends VBox {
             }
 
             // Update label and icon styles
-            SVGPath icon = (SVGPath) item.getChildren().get(0);
+            FontIcon icon = (FontIcon) item.getChildren().get(0);
             Label label = (Label) item.getChildren().get(1);
 
             icon.getStyleClass().removeAll("nav-icon-active");
@@ -138,14 +139,14 @@ public class Sidebar extends VBox {
     private VBox createFooter(Runnable onSeedData, Runnable onClearDemoData) {
         VBox footer = new VBox(10);
         footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-padding: 14px 0 0 0;");
+        footer.getStyleClass().add("sidebar-footer");
 
         // Seed Sample Data Button
         if (onSeedData != null) {
             Button seedBtn = new Button("Seed Demo Data");
-            seedBtn.getStyleClass().addAll("btn-secondary");
+            seedBtn.getStyleClass().add(Styles.ACCENT);
             seedBtn.setMaxWidth(Double.MAX_VALUE);
-            SVGPath sparkles = Icons.create(Icons.SPARKLES, 0.65, "#89b4fa");
+            FontIcon sparkles = Icons.create(Icons.SPARKLES, 0.65, "#11111b");
             seedBtn.setGraphic(sparkles);
             seedBtn.setOnAction(e -> {
                 onSeedData.run();
@@ -155,7 +156,7 @@ public class Sidebar extends VBox {
 
         if (onClearDemoData != null) {
             Button clearBtn = new Button("Clear Demo Data");
-            clearBtn.getStyleClass().add("btn-secondary");
+            clearBtn.getStyleClass().add(Styles.DANGER);
             clearBtn.setMaxWidth(Double.MAX_VALUE);
             clearBtn.setOnAction(e -> onClearDemoData.run());
             footer.getChildren().add(clearBtn);
@@ -176,12 +177,14 @@ public class Sidebar extends VBox {
                     dot.getStyleClass().removeAll("status-dot-offline");
                     dot.getStyleClass().add("status-dot-online");
                     statusLabel.setText("Atlas: Connected");
-                    statusLabel.setStyle("-fx-text-fill: -color-success;");
+                    statusLabel.getStyleClass().removeAll(Styles.SUCCESS, Styles.DANGER);
+                    statusLabel.getStyleClass().add(Styles.SUCCESS);
                 } else {
                     dot.getStyleClass().removeAll("status-dot-online");
                     dot.getStyleClass().add("status-dot-offline");
                     statusLabel.setText("Atlas: Offline");
-                    statusLabel.setStyle("-fx-text-fill: -color-danger;");
+                    statusLabel.getStyleClass().removeAll(Styles.SUCCESS, Styles.DANGER);
+                    statusLabel.getStyleClass().add(Styles.DANGER);
                 }
             });
         });

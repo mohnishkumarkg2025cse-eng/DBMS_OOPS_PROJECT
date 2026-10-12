@@ -5,7 +5,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Placeholder component for empty lists, search misses, or un-evaluated datasets.
@@ -17,7 +17,7 @@ public class EmptyState extends VBox {
         getStyleClass().add("empty-state");
 
         if (iconSvg != null) {
-            SVGPath icon = Icons.create(iconSvg, 1.0, "#5c607f");
+            FontIcon icon = Icons.create(iconSvg, 1.0, "#5c607f");
             icon.getStyleClass().add("empty-icon");
             StackPane iconWrap = new StackPane(icon);
             iconWrap.getStyleClass().add("empty-icon-wrap");

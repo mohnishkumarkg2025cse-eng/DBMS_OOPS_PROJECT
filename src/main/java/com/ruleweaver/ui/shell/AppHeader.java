@@ -1,5 +1,6 @@
 package com.ruleweaver.ui.shell;
 
+import atlantafx.base.theme.Styles;
 import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
 import com.ruleweaver.ui.AppContext;
@@ -12,7 +13,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Top Application Header displaying current route information and quick controls.
@@ -30,7 +31,7 @@ public class AppHeader extends HBox {
 
         VBox titleBlock = new VBox(2);
         titleLabel.getStyleClass().add("app-header-title");
-        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -color-text-secondary;");
+        subtitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL, "app-header-subtitle");
         titleBlock.getChildren().addAll(titleLabel, subtitleLabel);
         HBox.setHgrow(titleBlock, Priority.ALWAYS);
 
@@ -39,8 +40,8 @@ public class AppHeader extends HBox {
         policyChip.setAlignment(Pos.CENTER);
         policyChip.getStyleClass().add("app-header-policy-chip");
 
-        SVGPath policyIcon = Icons.create(Icons.POLICIES, 0.65, "#89b4fa");
-        policyBadge.setStyle("-fx-font-size: 11px; -fx-font-weight: 600; -fx-text-fill: -color-text-primary;");
+        FontIcon policyIcon = Icons.create(Icons.POLICIES, 0.65, "#89b4fa");
+        policyBadge.getStyleClass().addAll(Styles.TEXT_SMALL, "app-header-policy-label");
         policyChip.getChildren().addAll(policyIcon, policyBadge);
 
         // Listen for active policy / version updates
@@ -50,21 +51,27 @@ public class AppHeader extends HBox {
 
         // Reduced motion toggle button
         Button motionBtn = new Button();
-        motionBtn.setGraphic(Icons.create(Icons.SPARKLES, 0.7, "#9aa0c3"));
-        motionBtn.getStyleClass().add("btn-icon");
+        FontIcon motionIcon = Icons.create(Icons.SPARKLES, 0.7, "#9aa0c3");
+        motionIcon.getStyleClass().remove("icon-fill-secondary");
+        motionIcon.getStyleClass().add(ctx.reducedMotionProperty().get()
+                ? "motion-toggle-muted" : "motion-toggle-active");
+        motionBtn.setGraphic(motionIcon);
+        motionBtn.getStyleClass().addAll(Styles.BUTTON_ICON, "btn-icon");
         Tooltip motionTooltip = new Tooltip("Toggle Reduced Motion");
         Theme.apply(motionTooltip);
         motionBtn.setTooltip(motionTooltip);
         motionBtn.setOnAction(e -> {
             boolean current = ctx.reducedMotionProperty().get();
             ctx.reducedMotionProperty().set(!current);
-            motionBtn.setGraphic(Icons.create(Icons.SPARKLES, 0.7, !current ? "#5c607f" : "#89b4fa"));
+            FontIcon updatedMotionIcon = (FontIcon) motionBtn.getGraphic();
+            updatedMotionIcon.getStyleClass().removeAll("motion-toggle-active", "motion-toggle-muted");
+            updatedMotionIcon.getStyleClass().add(!current ? "motion-toggle-muted" : "motion-toggle-active");
         });
 
         // Global Refresh Button
         Button refreshBtn = new Button();
         refreshBtn.setGraphic(Icons.create(Icons.REFRESH, 0.7, "#9aa0c3"));
-        refreshBtn.getStyleClass().add("btn-icon");
+        refreshBtn.getStyleClass().addAll(Styles.BUTTON_ICON, "btn-icon");
         Tooltip refreshTooltip = new Tooltip("Refresh Current Data");
         Theme.apply(refreshTooltip);
         refreshBtn.setTooltip(refreshTooltip);

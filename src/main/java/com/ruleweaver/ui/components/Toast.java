@@ -9,7 +9,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.SVGPath;
+import org.kordamp.ikonli.javafx.FontIcon;
 import javafx.util.Duration;
 
 /**
@@ -61,7 +61,7 @@ public class Toast extends HBox {
             }
         }
 
-        SVGPath icon = Icons.create(iconSvg, 0.8, accentColor);
+        FontIcon icon = Icons.create(iconSvg, 0.8, accentColor);
 
         VBox textBlock = new VBox(2);
         Label titleLabel = new Label(title);

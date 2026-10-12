@@ -8,8 +8,13 @@ RuleWeaver X is a JavaFX desktop application for defining versioned decision pol
 |---|---|
 | Stack | Java 17, JavaFX 20.0.1, Maven, MongoDB Java sync driver 5.12.0, JUnit 5.9.0 |
 | Current branch | `main` |
+<<<<<<< Updated upstream
 | Latest commit | `b3b39ee` — `Restore merged style.css and UI styling updates` |
 | Working tree | Task 0 foundation/persistence, Task 1 program-schema changes, Task 2 Stage A dashboard changes, Task 3 Stage A Impact Lab changes, and Task 4 Stage A Policy Studio changes are uncommitted; pre-existing local config remains ignored. |
+=======
+| Latest commit | `d6e4731` — `Update RuleWeaver X implementation` |
+| Working tree | Contains RuleWeaver X theme, icon, shell, and progress updates; screen work is being delivered in sequence. |
+>>>>>>> Stashed changes
 | Main source/test layout | `src/main/java`, `src/main/resources`, `src/test/java` |
 
 ## B. Completed Features
@@ -77,6 +82,7 @@ These items have implementation evidence and automated test evidence. Test evide
 
 | Command executed during this update | Outcome |
 |---|---|
+<<<<<<< Updated upstream
 | Task 0 baseline `mvn test` | **BUILD SUCCESS** — 16 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
 | Task 0 updated `mvn test` | **BUILD SUCCESS** — 23 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
 | Task 1 final `mvn test` | **BUILD SUCCESS** — 38 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
@@ -85,6 +91,20 @@ These items have implementation evidence and automated test evidence. Test evide
 | Task 4 Stage A final `mvn test` | **BUILD SUCCESS** — 58 tests, 0 failures, 0 errors, 3 Atlas-gated integration tests skipped. |
 
 The Task 0 final test build compiled 67 production and 10 test Java source files. The Task 1 final test build compiled 82 production and 13 test Java source files. Maven reported JavaFX effective-model warnings, a `-source`/`-target` module-path warning (suggesting `--release`), and deprecated/unchecked use in `ApplicantsView`. Package/shaded-JAR creation, JavaFX application startup, and live MongoDB verification were not run.
+=======
+| `mvn clean compile` | **BUILD SUCCESS** — compiled all 66 production Java source files. |
+| `mvn clean test` | **BUILD SUCCESS** — 16 tests reported, 0 failures, 0 errors, 3 skipped. The `ApplicantRepositoryTest` Mongo integration tests were skipped because MongoDB was unavailable. |
+| `mvn package -DskipTests` | **BUILD SUCCESS** — shade plugin created `target/ruleweaver-x-1.0-SNAPSHOT.jar`. Its manifest names `com.ruleweaver.MainLauncher`; the entrypoint and `css/style.css` are embedded. |
+
+The theme-stage test build compiled 66 production and 7 test Java source files. Maven reported JavaFX effective-model warnings, a `-source`/`-target` module-path warning (suggesting `--release`), and deprecated/unchecked use in `ApplicantsView`; the UI had not yet been launched at that stage.
+
+### Ikonli startup fix (2026-10-12)
+
+- **Root cause:** The Material Design 2 pack is installed at Ikonli 12.3.1. Its generated handlers use a separate prefix for each icon-letter group (for example, `mdi2p-plus` and `mdi2v-view-dashboard`); the shared icon map incorrectly used the unsupported generic `mdi2-` prefix. All 20 mapped literals were checked against the installed pack and corrected.
+- **Regression coverage:** `IconsTest` constructs every configured icon and confirms an unknown application icon fails fast with a readable `IllegalArgumentException`; no dependency changes were needed.
+- **Verification:** `mvn clean compile` succeeded; `mvn test` succeeded with 19 tests, 0 failures/errors/skips. `mvn javafx:run` started without the icon-resolution exception and remained running after initial startup. The process was stopped after the startup smoke check, so Maven exited with code 1 on termination.
+- **Environment note:** The first clean-compile attempt encountered a JVM 25 access violation; retrying the same command succeeded. The test command also passed after the final icon mappings were applied.
+>>>>>>> Stashed changes
 
 ## G. Configuration and Security
 
@@ -103,6 +123,7 @@ The Task 0 final test build compiled 67 production and 10 test Java source files
 
 ## J. Next Steps
 
+<<<<<<< Updated upstream
 1. **Review and approve Task 4 Stage A** before proceeding. Task 4 Stage B and Task 5 have not been started.
 2. **Run a UI smoke pass** across all views, including the Task 3 Impact Lab controls and asynchronous refresh; first confirm the app can connect using local/environment configuration.
 3. **Test typed Atlas persistence end-to-end** for policy snapshots, evaluation batches, restart/readback, and initializer validators using a non-production database.
@@ -140,3 +161,27 @@ The Task 0 final test build compiled 67 production and 10 test Java source files
 - Kept existing create-policy, save-version, and rule-change summary behaviors. Failed policy validation leaves the modal draft intact; no new Stage B version-creation, change-note, or audit workflow was added.
 - Offline rule-draft tests cover nested logical evaluation, field types and validation, preview/tree consistency, draft isolation, duplicate rules, impact calculations, and rejected saves without repository writes.
 - Task 4 Stage B and Task 5 have not been started; Stage A is paused for review.
+=======
+1. **Run a UI smoke pass** across all five views and record observed behavior; first confirm the app can connect using local/environment configuration.
+2. **Test typed Atlas persistence end-to-end** for policy snapshots, evaluation batches, restart/readback, and initializer validators using a non-production database.
+3. **Close test gaps** for rule-engine edge cases, comparison of stored evaluation runs, and Mongo policy/evaluation mappers/repositories.
+4. **Confirm product scope and finish deferred features** (archive/search/audit, composite rule editing, export) before scheduling implementation.
+5. **Add CI and packaging checks** for the supported JavaFX platforms after the test and UI smoke paths are reproducible.
+
+## J. UI Theme Modernization — Staged Delivery
+
+- **Dependency compatibility:** AtlantaFX 2.0.1 requires JavaFX 17 or newer, so it is compatible with JavaFX 20.0.1 and does not require changing the Java 17 baseline. Ikonli 12.3.1 is included with its JavaFX bridge and Material Design 2 pack.
+- **Theme and author CSS:** `Theme` selects `PrimerDark` as the sole AtlantaFX user-agent stylesheet entry point. `style.css` remains applied as the scene author stylesheet; default list, combo box, table, scrollbar, dialog, and control styling overrides that conflict with AtlantaFX were removed.
+- **Icons:** Replaced in-house SVG path data with Ikonli FontIcons and CSS-backed icon colors. Updated shared components and icon call sites to use the new node type without redesigning later screens.
+- **Stage completed:** Sidebar and header markup/styles now use AtlantaFX button and typography helpers where applicable, and inline styles were removed from those shell components.
+- **Style-specific tests:** No `StyleSheetTest` or `StyleClassUsageTest` exists in `src/test/java`.
+
+| Screen stage | Implementation status | Visual result |
+|---|---|---|
+| Sidebar and header | Theme foundation and shell stage implemented | **Needs manual check** |
+| Dashboard | Not started; awaiting sidebar/header review | **Needs manual check** |
+| Applicants | Not started; awaiting earlier stages | **Needs manual check** |
+| Policies | Not started; awaiting earlier stages | **Needs manual check** |
+| Evaluation | Not started; awaiting earlier stages | **Needs manual check** |
+| Time Machine | Not started; awaiting earlier stages | **Needs manual check** |
+>>>>>>> Stashed changes
