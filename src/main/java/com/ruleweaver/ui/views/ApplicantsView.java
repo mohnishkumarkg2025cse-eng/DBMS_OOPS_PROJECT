@@ -9,7 +9,6 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -21,7 +20,6 @@ import javafx.scene.layout.*;
 import org.bson.Document;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,27 +45,39 @@ public class ApplicantsView implements BaseView {
     }
 
     private void buildUI() {
-        VBox contentBox = new VBox(20);
-        contentBox.setPadding(new Insets(28, 32, 28, 32));
+        VBox contentBox = new VBox(24);
+        contentBox.getStyleClass().add("applicants-page");
+        contentBox.setMinWidth(0);
+        contentBox.setMaxWidth(Double.MAX_VALUE);
 
-        // 1. Header Toolbar
-        HBox toolbar = createToolbar();
+        VBox toolbar = createToolbar();
 
-        // 2. TableView Configuration
         setupTable();
 
-        VBox tableCard = new VBox(12);
-        tableCard.getStyleClass().add("card");
+        VBox tableCard = new VBox(16);
+        tableCard.getStyleClass().addAll("card", "applicants-card");
+        HBox cardHeader = new HBox(16);
+        cardHeader.setAlignment(Pos.CENTER_LEFT);
+        VBox cardTitle = new VBox(4);
+        Label recordsTitle = new Label("Applicant records");
+        recordsTitle.getStyleClass().add("applicants-section-title");
+        Label recordsSubtitle = new Label("Profiles available for evaluation");
+        recordsSubtitle.getStyleClass().add("applicants-section-subtitle");
+        cardTitle.getChildren().addAll(recordsTitle, recordsSubtitle);
+        HBox.setHgrow(cardTitle, Priority.ALWAYS);
+        rowCountLabel.getStyleClass().add("applicants-count");
+        cardHeader.getChildren().addAll(cardTitle, rowCountLabel);
+
         VBox.setVgrow(tableView, Priority.ALWAYS);
         VBox.setVgrow(tableCard, Priority.ALWAYS);
-
-        tableCard.getChildren().addAll(tableView, createTableFooter());
+        tableCard.getChildren().addAll(cardHeader, tableView, createTableFooter());
 
         contentBox.getChildren().addAll(toolbar, tableCard);
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
+        rootPane.getStyleClass().add("page-root");
+        rootPane.setMinSize(0, 0);
         rootPane.getChildren().addAll(contentBox, loadingOverlay);
-
     }
 
     @Override
@@ -131,45 +141,54 @@ public class ApplicantsView implements BaseView {
                 .anyMatch(node -> node.getStyleClass().contains("modal-backdrop"));
     }
 
-    private HBox createToolbar() {
-        HBox toolbar = new HBox(16);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
-
-        VBox titleBox = new VBox(2);
-        Label title = new Label("Candidate Directory");
+    private VBox createToolbar() {
+        VBox toolbar = new VBox(16);
+        toolbar.getStyleClass().add("applicants-toolbar");
+        toolbar.setMinWidth(0);
+        Label title = new Label("Applicants");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Manage applicant pool and evaluate eligibility credentials");
+        Label subtitle = new Label("Manage applicant profiles and eligibility credentials");
+        subtitle.setWrapText(true);
         subtitle.getStyleClass().add("page-subtitle");
-        titleBox.getChildren().addAll(title, subtitle);
-        HBox.setHgrow(titleBox, Priority.ALWAYS);
 
-        // Live Search Bar
-        searchBar.setPrefWidth(320);
+        searchBar.setPrefWidth(360);
+        searchBar.setMinWidth(240);
+        searchBar.setMaxWidth(480);
+        HBox.setHgrow(searchBar, Priority.ALWAYS);
 
-        // Add Applicant Button
         Button addBtn = new Button("New Candidate");
         addBtn.getStyleClass().add("btn-primary");
-        addBtn.setGraphic(Icons.create(Icons.PLUS, 0.7, "#11111b"));
+        addBtn.setMinWidth(152);
+        var addIcon = Icons.create(Icons.PLUS, 0.7, (String) null);
+        addIcon.getStyleClass().add("applicant-primary-icon");
+        addBtn.setGraphic(addIcon);
         addBtn.setOnAction(e -> {
             showAddEditModal(null);
         });
 
-        toolbar.getChildren().addAll(titleBox, searchBar, addBtn);
+        FlowPane controls = new FlowPane(16, 8, searchBar, addBtn);
+        controls.getStyleClass().add("applicants-toolbar-controls");
+        controls.setAlignment(Pos.CENTER_LEFT);
+        controls.setMaxWidth(Double.MAX_VALUE);
+        controls.setMinWidth(0);
+        toolbar.getChildren().addAll(title, subtitle, controls);
         return toolbar;
     }
 
     private void setupTable() {
-        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.getStyleClass().add("applicants-table");
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        tableView.setMinHeight(240);
         tableView.setPlaceholder(new EmptyState(
                 Icons.APPLICANTS,
-                "No Candidates Found",
-                "No applicant matches your search query or the candidate database is empty.",
-                "Add Candidate",
+                "No applicants found",
+                "No applicant matches your search, or there are no profiles yet.",
+                "Add applicant",
                 () -> showAddEditModal(null)
         ));
 
         // Column 1: Avatar + Name + Email
-        TableColumn<Applicant, Applicant> nameCol = new TableColumn<>("CANDIDATE");
+        TableColumn<Applicant, Applicant> nameCol = new TableColumn<>("Applicant");
         nameCol.setCellValueFactory(param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue()));
         nameCol.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -185,20 +204,26 @@ public class ApplicantsView implements BaseView {
 
                     VBox textBlock = new VBox(2);
                     Label nameLbl = new Label(applicant.getName());
-                    nameLbl.setStyle("-fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
+                    nameLbl.getStyleClass().add("applicant-name");
+                    nameLbl.setWrapText(true);
+                    nameLbl.setMaxWidth(Double.MAX_VALUE);
 
                     Label emailLbl = new Label(applicant.getEmail() != null && !applicant.getEmail().isEmpty() 
                             ? applicant.getEmail() 
                             : "ID: " + (applicant.getId() != null ? applicant.getId() : "N/A"));
-                    emailLbl.setStyle("-fx-font-size: 11px; -fx-text-fill: -color-text-muted;");
+                    emailLbl.getStyleClass().add("applicant-secondary");
+                    emailLbl.setWrapText(true);
+                    emailLbl.setMaxWidth(Double.MAX_VALUE);
 
                     textBlock.getChildren().addAll(nameLbl, emailLbl);
+                    HBox.setHgrow(textBlock, Priority.ALWAYS);
                     box.getChildren().addAll(avatar, textBlock);
                     setGraphic(box);
                 }
             }
         });
-        nameCol.setPrefWidth(240);
+        nameCol.setMinWidth(180);
+        nameCol.setPrefWidth(280);
 
         // Column 2: GPA
         TableColumn<Applicant, String> gpaCol = new TableColumn<>("GPA");
@@ -207,49 +232,59 @@ public class ApplicantsView implements BaseView {
             @Override
             protected void updateItem(String val, boolean empty) {
                 super.updateItem(val, empty);
+                setAlignment(Pos.CENTER_LEFT);
                 if (empty || val == null) {
                     setGraphic(null);
                     setText(null);
                 } else {
                     Label lbl = new Label(val);
-                    lbl.setStyle("-fx-font-weight: 600; -fx-text-fill: -color-text-primary;");
+                    lbl.getStyleClass().add("applicant-metric");
                     setGraphic(lbl);
                 }
             }
         });
+        gpaCol.setMinWidth(64);
         gpaCol.setPrefWidth(90);
 
         // Column 3: Interview Score
-        TableColumn<Applicant, String> scoreCol = new TableColumn<>("INTERVIEW SCORE");
+        TableColumn<Applicant, String> scoreCol = new TableColumn<>("Interview score");
         scoreCol.setCellValueFactory(param -> new SimpleStringProperty(String.valueOf(param.getValue().getInterviewScore())));
         scoreCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String val, boolean empty) {
                 super.updateItem(val, empty);
+                setAlignment(Pos.CENTER_LEFT);
                 if (empty || val == null) {
                     setGraphic(null);
                     setText(null);
                 } else {
                     Label lbl = new Label(val + " / 100");
-                    lbl.setStyle("-fx-font-weight: 600; -fx-text-fill: -color-text-primary;");
+                    lbl.getStyleClass().add("applicant-metric");
                     setGraphic(lbl);
                 }
             }
         });
-        scoreCol.setPrefWidth(130);
+        scoreCol.setMinWidth(112);
+        scoreCol.setPrefWidth(140);
 
         // Column 4: Skills Pill Chips
-        TableColumn<Applicant, List<String>> skillsCol = new TableColumn<>("COMPETENCIES & SKILLS");
+        TableColumn<Applicant, List<String>> skillsCol = new TableColumn<>("Skills");
         skillsCol.setCellValueFactory(param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getSkills()));
         skillsCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(List<String> skills, boolean empty) {
                 super.updateItem(skills, empty);
-                if (empty || skills == null || skills.isEmpty()) {
-                    setGraphic(new Label("No skills recorded"));
+                setAlignment(Pos.CENTER_LEFT);
+                if (empty) {
+                    setGraphic(null);
+                } else if (skills == null || skills.isEmpty()) {
+                    Label noSkills = new Label("No skills recorded");
+                    noSkills.getStyleClass().add("applicant-secondary");
+                    setGraphic(noSkills);
                 } else {
-                    HBox chips = new HBox(6);
+                    FlowPane chips = new FlowPane(8, 4);
                     chips.setAlignment(Pos.CENTER_LEFT);
+                    chips.setMaxWidth(Double.MAX_VALUE);
                     for (String s : skills) {
                         chips.getChildren().add(new SkillChip(s));
                     }
@@ -257,10 +292,11 @@ public class ApplicantsView implements BaseView {
                 }
             }
         });
-        skillsCol.setPrefWidth(280);
+        skillsCol.setMinWidth(160);
+        skillsCol.setPrefWidth(300);
 
         // Column 5: Action Buttons (Edit / Delete)
-        TableColumn<Applicant, Applicant> actionCol = new TableColumn<>("ACTIONS");
+        TableColumn<Applicant, Applicant> actionCol = new TableColumn<>("Actions");
         actionCol.setCellValueFactory(param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue()));
         actionCol.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button();
@@ -269,13 +305,17 @@ public class ApplicantsView implements BaseView {
 
             {
                 actions.setAlignment(Pos.CENTER_LEFT);
-                editBtn.setGraphic(Icons.create(Icons.EDIT, 0.65, "#89b4fa"));
+                var editIcon = Icons.create(Icons.EDIT, 0.65, (String) null);
+                editIcon.getStyleClass().add("applicant-edit-icon");
+                editBtn.setGraphic(editIcon);
                 editBtn.getStyleClass().add("btn-icon");
                 Tooltip editTooltip = new Tooltip("Edit Candidate");
                 Theme.apply(editTooltip);
                 editBtn.setTooltip(editTooltip);
 
-                deleteBtn.setGraphic(Icons.create(Icons.TRASH, 0.65, "#f38ba8"));
+                var deleteIcon = Icons.create(Icons.TRASH, 0.65, (String) null);
+                deleteIcon.getStyleClass().add("applicant-delete-icon");
+                deleteBtn.setGraphic(deleteIcon);
                 deleteBtn.getStyleClass().addAll("btn-icon", "btn-danger");
                 Tooltip deleteTooltip = new Tooltip("Delete Candidate");
                 Theme.apply(deleteTooltip);
@@ -298,7 +338,8 @@ public class ApplicantsView implements BaseView {
                 }
             }
         });
-        actionCol.setPrefWidth(100);
+        actionCol.setMinWidth(88);
+        actionCol.setPrefWidth(104);
 
         tableView.getColumns().addAll(nameCol, gpaCol, scoreCol, skillsCol, actionCol);
 
@@ -328,17 +369,14 @@ public class ApplicantsView implements BaseView {
     }
 
     private HBox createTableFooter() {
-        HBox footer = new HBox();
+        HBox footer = new HBox(8);
         footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-padding: 4px 0 0 0;");
-
-        rowCountLabel.getStyleClass().add("caption-label");
-        HBox.setHgrow(rowCountLabel, Priority.ALWAYS);
 
         Label hint = new Label("Keyboard Shortcuts: Ctrl+N New Candidate | Del Delete Selected");
-        hint.setStyle("-fx-font-size: 11px; -fx-text-fill: -color-text-muted;");
+        hint.getStyleClass().add("applicants-shortcut-hint");
+        hint.setWrapText(true);
 
-        footer.getChildren().addAll(rowCountLabel, hint);
+        footer.getChildren().add(hint);
         return footer;
     }
 
@@ -357,12 +395,14 @@ public class ApplicantsView implements BaseView {
         StackPane.setAlignment(modalBackdrop, javafx.geometry.Pos.CENTER);
 
         VBox dialogBox = new VBox(18);
-        dialogBox.getStyleClass().add("modal-window");
-        dialogBox.setPrefWidth(460);
+        dialogBox.getStyleClass().addAll("modal-window", "applicant-form");
+        dialogBox.setMinWidth(320);
+        dialogBox.setPrefWidth(520);
+        dialogBox.setMaxWidth(560);
         dialogBox.setAlignment(Pos.CENTER_LEFT);
 
         Label title = new Label(isEdit ? "Edit Candidate" : "New Candidate Profile");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
+        title.getStyleClass().add("applicant-form-title");
 
         // Form Fields
         TextField nameInput = new TextField(isEdit ? existing.getName() : "");
@@ -389,26 +429,29 @@ public class ApplicantsView implements BaseView {
         TextField skillsInput = new TextField(existingSkills);
         skillsInput.setPromptText("Skills comma-separated (e.g. Java, SQL, Spring)");
 
-        VBox form = new VBox(12,
-                new VBox(4, new Label("Full Name *"), nameInput, nameError),
-                new VBox(4, new Label("Email"), emailInput),
-                new VBox(4, new Label("GPA (scale 0-10) *"), gpaInput, gpaError),
-                new VBox(4, new Label("Interview Score (0-100) *"), scoreInput, scoreError),
-                new VBox(4, new Label("Competencies & Skills"), skillsInput)
+        VBox form = new VBox(16,
+                formField("Full Name *", nameInput, nameError),
+                formField("Email", emailInput, null),
+                formField("GPA (scale 0-10) *", gpaInput, gpaError),
+                formField("Interview Score (0-100) *", scoreInput, scoreError),
+                formField("Competencies & Skills", skillsInput, null)
         );
 
-        HBox btnRow = new HBox(12);
+        FlowPane btnRow = new FlowPane(12, 8);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
-        btnRow.setStyle("-fx-padding: 8px 0 0 0;");
+        btnRow.getStyleClass().add("applicant-form-actions");
+        btnRow.setMaxWidth(Double.MAX_VALUE);
 
         Button cancelBtn = new Button("Cancel");
         cancelBtn.getStyleClass().add("btn-secondary");
+        cancelBtn.setMinWidth(112);
         cancelBtn.setOnAction(e -> {
             rootPane.getChildren().remove(modalBackdrop);
         });
 
         Button saveBtn = new Button(isEdit ? "Update Candidate" : "Save Candidate");
         saveBtn.getStyleClass().add("btn-primary");
+        saveBtn.setMinWidth(152);
         saveBtn.setOnAction(e -> {
             // Validation
             boolean valid = true;
@@ -477,6 +520,18 @@ public class ApplicantsView implements BaseView {
 
         rootPane.getChildren().add(modalBackdrop);
         Motion.modalScaleIn(dialogBox);
+    }
+
+    private VBox formField(String label, TextField input, Label error) {
+        Label fieldLabel = new Label(label);
+        fieldLabel.getStyleClass().add("applicant-form-label");
+        VBox field = new VBox(8);
+        field.getChildren().addAll(fieldLabel, input);
+        if (error != null) {
+            field.getChildren().add(error);
+        }
+        input.setMaxWidth(Double.MAX_VALUE);
+        return field;
     }
 
     private void saveApplicantAsync(Applicant applicant, boolean isEdit, Runnable onSuccess) {

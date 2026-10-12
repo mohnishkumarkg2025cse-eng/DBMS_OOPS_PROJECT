@@ -156,13 +156,13 @@ public class DashboardView implements BaseView {
         contentBox.getStyleClass().addAll("dash-page", "page-root");
         contentBox.setMinWidth(0);
         contentBox.setMaxWidth(Double.MAX_VALUE);
-        contentGrid.setHgap(20);
-        contentGrid.setVgap(20);
+        contentGrid.setHgap(24);
+        contentGrid.setVgap(24);
         contentGrid.setMinWidth(0);
         contentGrid.setMaxWidth(Double.MAX_VALUE);
         rootPane.setMinSize(0, 0);
 
-        HBox header = createHeader();
+        VBox header = createHeader();
         FlowPane filters = createFiltersRow();
         createKpiRow();
         createChartsRow();
@@ -244,10 +244,10 @@ public class DashboardView implements BaseView {
     }
 
     private VBox createWhatIfCard() {
-        VBox card = new VBox(12);
-        card.getStyleClass().addAll("card", "whatif-card");
-        Label title = new Label("IMPACT LAB — WHAT-IF SIMULATOR");
-        title.getStyleClass().add("caption-label");
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", "dashboard-card", "whatif-card");
+        Label title = new Label("Impact Lab — what-if simulator");
+        title.getStyleClass().add("dashboard-section-title");
 
         configureImpactLabSelector(whatIfProgramChoice, "All programs", ProgramConfiguration::getName);
         configureImpactLabSelector(whatIfPolicyChoice, "Select policy", Policy::getName);
@@ -432,9 +432,11 @@ public class DashboardView implements BaseView {
                 throw new NumberFormatException("Threshold outside the allowed range.");
             }
             input.getValueFactory().setValue(value);
-            input.getEditor().setStyle("");
+            input.getEditor().getStyleClass().remove("dashboard-input-error");
         } catch (NumberFormatException exception) {
-            input.getEditor().setStyle("-fx-border-color: #f38ba8;");
+            if (!input.getEditor().getStyleClass().contains("dashboard-input-error")) {
+                input.getEditor().getStyleClass().add("dashboard-input-error");
+            }
             input.getEditor().setText(String.valueOf(minimumThreshold(input)));
             whatIfSummary.setText("Enter a finite threshold within the selected field's permitted range.");
         }
@@ -777,10 +779,10 @@ public class DashboardView implements BaseView {
         ctx.getExecutor().execute(task);
     }
 
-    private HBox createHeader() {
-        HBox header = new HBox(20);
+    private VBox createHeader() {
+        VBox header = new VBox(16);
         header.setAlignment(Pos.CENTER_LEFT);
-        VBox titleBox = new VBox(3);
+        VBox titleBox = new VBox(8);
         titleBox.setMinWidth(0);
         Label title = new Label("System Dashboard");
         title.setMinWidth(0);
@@ -790,10 +792,9 @@ public class DashboardView implements BaseView {
         subtitle.setWrapText(true);
         subtitle.getStyleClass().add("page-subtitle");
         titleBox.getChildren().addAll(title, subtitle);
-        HBox.setHgrow(titleBox, Priority.ALWAYS);
 
         policyChoice.setPromptText("All policies");
-        policyChoice.setPrefWidth(190);
+        policyChoice.setPrefWidth(210);
         policyChoice.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Policy policy, boolean empty) {
@@ -810,23 +811,28 @@ public class DashboardView implements BaseView {
         });
         policyChoice.getItems().setAll(AppContext.getInstance().getPolicies());
         selectedPolicyChip.getStyleClass().addAll("policy-chip", "policy-chip-text");
+        selectedPolicyChip.setWrapText(true);
+        selectedPolicyChip.setMaxWidth(240);
         lastUpdatedLabel.getStyleClass().add("last-updated");
+        lastUpdatedLabel.setWrapText(true);
+        lastUpdatedLabel.setMaxWidth(180);
         refreshButton.getStyleClass().add("btn-icon");
         refreshButton.setGraphic(Icons.create(Icons.REFRESH, 0.8, "#9aa0c3"));
         refreshButton.setTooltip(new Tooltip("Refresh dashboard"));
         evaluateAllButton.getStyleClass().add("btn-primary");
+        evaluateAllButton.setMinWidth(124);
         cancelEvaluationButton.getStyleClass().add("btn-secondary");
+        cancelEvaluationButton.setMinWidth(88);
         cancelEvaluationButton.setVisible(false);
         cancelEvaluationButton.setManaged(false);
 
-        FlowPane toolbar = new FlowPane(8, 8, policyChoice, selectedPolicyChip,
+        FlowPane toolbar = new FlowPane(16, 8, policyChoice, selectedPolicyChip,
                 lastUpdatedLabel, refreshButton, evaluateAllButton, cancelEvaluationButton);
         toolbar.getStyleClass().add("dash-toolbar-controls");
-        toolbar.setAlignment(Pos.CENTER_RIGHT);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.setMaxWidth(Double.MAX_VALUE);
         toolbar.setMinWidth(0);
-        HBox.setHgrow(toolbar, Priority.ALWAYS);
-        header.getStyleClass().add("dash-toolbar");
+        header.getStyleClass().addAll("dash-toolbar", "dashboard-header");
         header.getChildren().addAll(titleBox, toolbar);
         return header;
     }
@@ -851,8 +857,8 @@ public class DashboardView implements BaseView {
             if (!syncingFilters) refreshDashboard();
         });
 
-        FlowPane row = new FlowPane(12, 8);
-        row.getStyleClass().add("card");
+        FlowPane row = new FlowPane(16, 8);
+        row.getStyleClass().addAll("card", "dashboard-card", "dashboard-filters");
         row.setAlignment(Pos.CENTER_LEFT);
         row.getChildren().addAll(
                 filterControl("Program", programFilter),
@@ -933,8 +939,9 @@ public class DashboardView implements BaseView {
     }
 
     private VBox filterControl(String label, ComboBox<?> control) {
-        VBox box = new VBox(5, new Label(label), control);
+        VBox box = new VBox(8, new Label(label), control);
         box.getStyleClass().add("dashboard-filter");
+        box.setMinWidth(176);
         control.setMaxWidth(Double.MAX_VALUE);
         return box;
     }
@@ -976,10 +983,7 @@ public class DashboardView implements BaseView {
 
     private void layoutKpiCards(double width) {
         double screenWidth = width + SIDEBAR_WIDTH;
-        int columns = screenWidth >= 1500 ? 6 : 3;
-        if (screenWidth < 900) {
-            columns = 2;
-        }
+        int columns = screenWidth >= 1100 ? 3 : screenWidth >= 850 ? 2 : 1;
         kpiGrid.getChildren().clear();
         List<KpiCard> cards = List.of(totalCard, eligibleCard, rejectedCard,
                 nearMissCard, passRateCard, impactCard);
@@ -1002,10 +1006,10 @@ public class DashboardView implements BaseView {
     }
 
     private void createChartsRow() {
-        pieWidget = new VBox(12);
-        pieWidget.getStyleClass().add("card");
-        Label pieTitle = new Label("DECISION OUTCOME");
-        pieTitle.getStyleClass().add("caption-label");
+        pieWidget = new VBox(16);
+        pieWidget.getStyleClass().addAll("card", "dashboard-card");
+        Label pieTitle = new Label("Decision outcome");
+        pieTitle.getStyleClass().add("dashboard-section-title");
         pieChart.setLegendVisible(true);
         pieChart.setLabelsVisible(false);
         pieChart.setAnimated(!AppContext.getInstance().reducedMotionProperty().get());
@@ -1026,10 +1030,10 @@ public class DashboardView implements BaseView {
         pieWidget.getChildren().addAll(pieTitle, chartCard);
         VBox.setVgrow(chartCard, Priority.ALWAYS);
 
-        barWidget = new VBox(12);
-        barWidget.getStyleClass().add("card");
-        Label barTitle = new Label("RULE-LEVEL OUTCOMES");
-        barTitle.getStyleClass().add("caption-label");
+        barWidget = new VBox(16);
+        barWidget.getStyleClass().addAll("card", "dashboard-card");
+        Label barTitle = new Label("Rule-level outcomes");
+        barTitle.getStyleClass().add("dashboard-section-title");
         ruleSampleSummaryLabel.getStyleClass().add("page-subtitle");
         ruleSampleSummaryLabel.setWrapText(true);
         barXAxis = new NumberAxis();
@@ -1039,8 +1043,8 @@ public class DashboardView implements BaseView {
         barChart = new BarChart<>(barXAxis, barYAxis);
         barChart.setLegendVisible(true);
         barChart.setAnimated(!AppContext.getInstance().reducedMotionProperty().get());
-        barChart.setPrefHeight(300);
-        barChart.setMinHeight(250);
+        barChart.setPrefHeight(320);
+        barChart.setMinHeight(280);
         barCard.getStyleClass().add("widget-slot");
         barCard.setMinHeight(280);
         barCard.getChildren().setAll(barChart);
@@ -1049,10 +1053,10 @@ public class DashboardView implements BaseView {
     }
 
     private VBox createRecentEvaluationsCard() {
-        recentWidget = new VBox(12);
-        recentWidget.getStyleClass().add("card");
-        Label title = new Label("RECENT EVALUATIONS");
-        title.getStyleClass().add("caption-label");
+        recentWidget = new VBox(16);
+        recentWidget.getStyleClass().addAll("card", "dashboard-card");
+        Label title = new Label("Recent evaluations");
+        title.getStyleClass().add("dashboard-section-title");
         configureRecentTable();
         recentEvaluations.setPrefHeight(300);
         recentEvaluations.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -1104,10 +1108,11 @@ public class DashboardView implements BaseView {
     }
 
     private VBox createNeedsAttentionCard() {
-        attentionWidget = new VBox(12);
-        attentionWidget.getStyleClass().add("card");
-        Label title = new Label("DECISION FUNNEL & REJECTION REASONS");
-        title.getStyleClass().add("caption-label");
+        attentionWidget = new VBox(16);
+        attentionWidget.getStyleClass().addAll("card", "dashboard-card");
+        Label title = new Label("Decision funnel & rejection reasons");
+        title.setWrapText(true);
+        title.getStyleClass().add("dashboard-section-title");
         needsAttentionList.setFillWidth(true);
         needsAttentionSlot.getStyleClass().add("widget-slot");
         needsAttentionSlot.getChildren().setAll(needsAttentionList);
@@ -1116,7 +1121,7 @@ public class DashboardView implements BaseView {
         return attentionWidget;
     }
 
-    private void layoutDashboard(HBox header, FlowPane filters, VBox recentCard, VBox attentionCard,
+    private void layoutDashboard(VBox header, FlowPane filters, VBox recentCard, VBox attentionCard,
                                  VBox whatIfCard, double width) {
         double screenWidth = width + SIDEBAR_WIDTH;
         int columns = screenWidth >= 1300 ? 3 : 2;

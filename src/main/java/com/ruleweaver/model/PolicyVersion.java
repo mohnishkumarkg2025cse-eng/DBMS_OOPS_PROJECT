@@ -8,7 +8,9 @@ import java.time.LocalDateTime;
 public class PolicyVersion {
     private String id;
     private String policyId;
+    private String programId;
     private int versionNumber;
+    private int programSchemaRevision;
     private String description;
     private List<Condition> conditions;
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -51,12 +53,31 @@ public class PolicyVersion {
         this.policyId = policyId;
     }
 
+    public String getProgramId() {
+        return programId;
+    }
+
+    public void setProgramId(String programId) {
+        this.programId = programId == null || programId.isBlank() ? null : programId.trim();
+    }
+
     public int getVersionNumber() {
         return versionNumber;
     }
 
     public void setVersionNumber(int versionNumber) {
         this.versionNumber = versionNumber;
+    }
+
+    public int getProgramSchemaRevision() {
+        return programSchemaRevision;
+    }
+
+    public void setProgramSchemaRevision(int programSchemaRevision) {
+        if (programSchemaRevision < 0) {
+            throw new IllegalArgumentException("Program schema revision cannot be negative.");
+        }
+        this.programSchemaRevision = programSchemaRevision;
     }
 
     public String getDescription() {

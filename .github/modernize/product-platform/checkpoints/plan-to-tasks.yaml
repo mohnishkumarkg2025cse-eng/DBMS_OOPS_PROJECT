@@ -1,0 +1,229 @@
+metadata:
+  generated: "2026-10-12"
+  source_plan: "IMPLEMENTATION_PLAN.md"
+  target_tasks: "IMPLEMENTATION_PLAN.md#reviewable-task-breakdown"
+
+summary:
+  total_plan_items: 20
+  covered_plan_items: 20
+  missing_plan_items: 0
+  coverage_percentage: 100.0
+  total_tasks_generated: 20
+  orphan_tasks: 0
+
+phases:
+  - phase_id: "Phase-1"
+    phase_name: "Baseline and functional inventory"
+    items:
+      - item_id: "1.1"
+        description: "Confirm audit findings and establish a safe baseline"
+        tasks:
+          - task_id: "T001"
+            description: "Inventory UI actions and record baseline"
+        notes: ""
+  - phase_id: "Phase-2"
+    phase_name: "Foundational data integrity"
+    items:
+      - item_id: "2.1"
+        description: "Define ownership, lifecycle, and legacy compatibility rules"
+        tasks:
+          - task_id: "T002"
+            description: "Review relationship and migration contract"
+      - item_id: "2.2"
+        description: "Implement backward-compatible relationship models and document mappers"
+        tasks:
+          - task_id: "T003"
+            description: "Add model and mapper relationship support"
+      - item_id: "2.3"
+        description: "Add safe, idempotent Mongo migration and indexes"
+        tasks:
+          - task_id: "T004"
+            description: "Implement dry-run migration and tests"
+      - item_id: "2.4"
+        description: "Make shared selection and refresh state coherent"
+        tasks:
+          - task_id: "T005"
+            description: "Synchronize selected context and async refresh"
+        notes: ""
+  - phase_id: "Phase-3"
+    phase_name: "Durable scenarios and business behavior"
+    items:
+      - item_id: "3.1"
+        description: "Seed three distinct, idempotent program scenarios"
+        tasks:
+          - task_id: "T006"
+            description: "Implement safe multi-scenario seeds"
+      - item_id: "3.2"
+        description: "Complete policy lifecycle and publish/version guarantees"
+        tasks:
+          - task_id: "T007"
+            description: "Enforce policy lifecycle semantics"
+      - item_id: "3.3"
+        description: "Make evaluations explainable and reproducible from saved snapshots"
+        tasks:
+          - task_id: "T008"
+            description: "Persist historical decision context"
+      - item_id: "3.4"
+        description: "Complete, audit, and wire every existing UI action"
+        tasks:
+          - task_id: "T009"
+            description: "Resolve inventoried actions"
+      - item_id: "3.5"
+        description: "Persist rebuildable dashboard metric snapshots"
+        tasks:
+          - task_id: "T010"
+            description: "Persist scoped metric snapshots"
+        notes: ""
+  - phase_id: "Phase-4"
+    phase_name: "Shared interaction and visual foundation"
+    items:
+      - item_id: "4.1"
+        description: "Build shared SaaS visual primitives and interaction states"
+        tasks:
+          - task_id: "T011"
+            description: "Consolidate PrimerDark and reusable UI primitives"
+        notes: ""
+  - phase_id: "Phase-5"
+    phase_name: "Cohesive product experiences"
+    items:
+      - item_id: "5.1"
+        description: "Complete Programs workspace"
+        tasks:
+          - task_id: "T012"
+            description: "Complete Programs experience"
+      - item_id: "5.2"
+        description: "Complete Applicants workspace"
+        tasks:
+          - task_id: "T013"
+            description: "Complete Applicants experience"
+      - item_id: "5.3"
+        description: "Complete Policy Studio authoring and history experience"
+        tasks:
+          - task_id: "T014"
+            description: "Complete Policy Studio experience"
+      - item_id: "5.4"
+        description: "Complete Evaluation workspace"
+        tasks:
+          - task_id: "T015"
+            description: "Complete Evaluation experience"
+      - item_id: "5.5"
+        description: "Complete Impact Lab as a coordinated simulation workflow"
+        tasks:
+          - task_id: "T016"
+            description: "Complete Impact Lab workflow"
+      - item_id: "5.6"
+        description: "Complete Time Machine and comparison history"
+        tasks:
+          - task_id: "T017"
+            description: "Complete Time Machine workflow"
+      - item_id: "5.7"
+        description: "Complete Dashboard as persisted, scoped product overview"
+        tasks:
+          - task_id: "T018"
+            description: "Complete Dashboard experience"
+        notes: ""
+  - phase_id: "Phase-6"
+    phase_name: "Product-wide verification and acceptance"
+    items:
+      - item_id: "6.1"
+        description: "Add integrated multi-program workflow coverage"
+        tasks:
+          - task_id: "T019"
+            description: "Run integrated multi-program workflows"
+      - item_id: "6.2"
+        description: "Perform manual visual and operational acceptance"
+        tasks:
+          - task_id: "T020"
+            description: "Complete manual acceptance and packaging checks"
+        notes: ""
+
+missing_plan_items: []
+orphan_tasks: []
+
+upstream_trace:
+  - plan_item: "1.1"
+    source_requirements: ["REQ-003", "REQ-009"]
+    tasks: ["T001"]
+    full_trace: "REQ-003,REQ-009 → 1.1 → T001"
+  - plan_item: "2.1"
+    source_requirements: ["REQ-001", "REQ-004", "REQ-005", "REQ-006"]
+    tasks: ["T002"]
+    full_trace: "REQ-001,REQ-004,REQ-005,REQ-006 → 2.1 → T002"
+  - plan_item: "2.2"
+    source_requirements: ["REQ-001", "REQ-006"]
+    tasks: ["T003"]
+    full_trace: "REQ-001,REQ-006 → 2.2 → T003"
+  - plan_item: "2.3"
+    source_requirements: ["REQ-001", "REQ-004", "REQ-006", "REQ-009"]
+    tasks: ["T004"]
+    full_trace: "REQ-001,REQ-004,REQ-006,REQ-009 → 2.3 → T004"
+  - plan_item: "2.4"
+    source_requirements: ["REQ-001", "REQ-003", "REQ-004", "REQ-008"]
+    tasks: ["T005"]
+    full_trace: "REQ-001,REQ-003,REQ-004,REQ-008 → 2.4 → T005"
+  - plan_item: "3.1"
+    source_requirements: ["REQ-001", "REQ-002", "REQ-009"]
+    tasks: ["T006"]
+    full_trace: "REQ-001,REQ-002,REQ-009 → 3.1 → T006"
+  - plan_item: "3.2"
+    source_requirements: ["REQ-001", "REQ-003", "REQ-005", "REQ-006"]
+    tasks: ["T007"]
+    full_trace: "REQ-001,REQ-003,REQ-005,REQ-006 → 3.2 → T007"
+  - plan_item: "3.3"
+    source_requirements: ["REQ-001", "REQ-004", "REQ-006"]
+    tasks: ["T008"]
+    full_trace: "REQ-001,REQ-004,REQ-006 → 3.3 → T008"
+  - plan_item: "3.4"
+    source_requirements: ["REQ-003", "REQ-008", "REQ-009"]
+    tasks: ["T009"]
+    full_trace: "REQ-003,REQ-008,REQ-009 → 3.4 → T009"
+  - plan_item: "3.5"
+    source_requirements: ["REQ-004", "REQ-006", "REQ-008"]
+    tasks: ["T010"]
+    full_trace: "REQ-004,REQ-006,REQ-008 → 3.5 → T010"
+  - plan_item: "4.1"
+    source_requirements: ["REQ-007", "REQ-008", "REQ-009"]
+    tasks: ["T011"]
+    full_trace: "REQ-007,REQ-008,REQ-009 → 4.1 → T011"
+  - plan_item: "5.1"
+    source_requirements: ["REQ-002", "REQ-003", "REQ-008"]
+    tasks: ["T012"]
+    full_trace: "REQ-002,REQ-003,REQ-008 → 5.1 → T012"
+  - plan_item: "5.2"
+    source_requirements: ["REQ-001", "REQ-003", "REQ-008"]
+    tasks: ["T013"]
+    full_trace: "REQ-001,REQ-003,REQ-008 → 5.2 → T013"
+  - plan_item: "5.3"
+    source_requirements: ["REQ-005", "REQ-008"]
+    tasks: ["T014"]
+    full_trace: "REQ-005,REQ-008 → 5.3 → T014"
+  - plan_item: "5.4"
+    source_requirements: ["REQ-003", "REQ-006", "REQ-008"]
+    tasks: ["T015"]
+    full_trace: "REQ-003,REQ-006,REQ-008 → 5.4 → T015"
+  - plan_item: "5.5"
+    source_requirements: ["REQ-003", "REQ-006", "REQ-008"]
+    tasks: ["T016"]
+    full_trace: "REQ-003,REQ-006,REQ-008 → 5.5 → T016"
+  - plan_item: "5.6"
+    source_requirements: ["REQ-003", "REQ-006", "REQ-008"]
+    tasks: ["T017"]
+    full_trace: "REQ-003,REQ-006,REQ-008 → 5.6 → T017"
+  - plan_item: "5.7"
+    source_requirements: ["REQ-004", "REQ-008"]
+    tasks: ["T018"]
+    full_trace: "REQ-004,REQ-008 → 5.7 → T018"
+  - plan_item: "6.1"
+    source_requirements: ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-008", "REQ-009"]
+    tasks: ["T019"]
+    full_trace: "REQ-001,REQ-002,REQ-003,REQ-004,REQ-005,REQ-006,REQ-008,REQ-009 → 6.1 → T019"
+  - plan_item: "6.2"
+    source_requirements: ["REQ-003", "REQ-007", "REQ-008", "REQ-009"]
+    tasks: ["T020"]
+    full_trace: "REQ-003,REQ-007,REQ-008,REQ-009 → 6.2 → T020"
+
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "Task ordering assumes T001/T002 review gates complete before schema or data migration changes."

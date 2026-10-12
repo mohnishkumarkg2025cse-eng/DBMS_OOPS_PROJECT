@@ -2,6 +2,48 @@
 
 ## 2026-10-12
 
+### T003 — Backward-Compatible Program and Snapshot Relationships
+
+- Added nullable applicant program ownership and a schema revision reference on program configurations; old program documents without a revision remain at legacy revision `0`.
+- Added immutable program schema revision records, BSON mapping, in-memory persistence, and MongoDB repository support.
+- Added program/schema revision references to policy versions and evaluations, plus saved applicant input and engine-semantics metadata for historical evaluation context.
+- Preserved old BSON compatibility: missing applicant/evaluation references remain unassigned, and policy-version reads inherit program ownership from the parent policy where available.
+- Added round-trip and legacy-shape tests for applicant, program, schema revision, policy version, and evaluation mappings, plus in-memory revision immutability/order coverage.
+- No data migration, legacy-record assignment, applicant deletion behavior change, or persisted user-data write was performed. Lifecycle wiring and migration/index rollout remain future tasks.
+- Validation: `mvn clean compile` **BUILD SUCCESS** (92 production sources); `mvn clean test` **BUILD SUCCESS** (67 tests, 0 failures, 0 errors, 0 skipped). The three `ApplicantRepositoryTest` cases passed.
+- Existing warnings: JavaFX effective-model and source/target module-path warnings, MongoDB SLF4J not found, JDK restricted native access, and unchecked operations in `ApplicantsView`.
+
+### Policies Screen Redesign
+
+- Reorganized the Policies page header and new-policy action into a clear, wrapping layout; added a page scroll surface and a stacked master/detail arrangement at compact widths.
+- Refined policy list rows to wrap long names and IDs, styled the empty state, and improved card, version-history, and rule-condition hierarchy and spacing.
+- Replaced Policies inline condition/modal title styles and fixed-color action icons with Policies-scoped author CSS classes.
+- Preserved policy selection, version history and activation, What-if Simulator, rule-builder dialogs, async service calls, persistence, and existing feedback behavior.
+- Validation: `mvn clean compile` **BUILD SUCCESS** (86 production sources); `mvn clean test` **BUILD SUCCESS** (61 tests, 0 failures, 0 errors, 0 skipped). All three `ApplicantRepositoryTest` cases ran and passed.
+- Existing warnings: JavaFX effective-model and source/target module-path warnings, MongoDB SLF4J not found, JDK restricted native access, and unchecked operations in `ApplicantsView`.
+- Visual verification: **Needs manual check**; the JavaFX application was not launched or visually inspected.
+- Files changed for this update: `PoliciesView.java`, `style.css`, `PROGRESS.md`, and `CHANGELOG.md`. Dashboard and Applicants changes from earlier stages were preserved.
+
+### Applicants Screen Redesign — Update 3
+
+- Reorganized the Applicants heading, search, and existing create action into a wrapping layout that remains usable at narrower widths.
+- Added a headed applicant-records card with a visible filtered row count; improved table headings, row spacing, name/email hierarchy, metric alignment, and wrapping skill chips.
+- Applied CSS classes to applicant-specific table cells, icons, and the existing add/edit form, removing ApplicantsView inline styles without changing form validation or CRUD behavior.
+- Preserved search, sorting, create/edit/delete actions, keyboard shortcuts, delete confirmation, empty-state action, async persistence, and toast feedback.
+- Validation: `mvn clean compile` **BUILD SUCCESS** — 86 production sources; `mvn clean test` **BUILD SUCCESS** — 61 tests, 0 failures, 0 errors, 0 skipped. All three `ApplicantRepositoryTest` cases ran and passed.
+- Visual verification: **Needs manual check**; the JavaFX application was not launched for visual inspection.
+- Files changed for this update: `ApplicantsView.java`, `style.css`, `PROGRESS.md`, and `CHANGELOG.md`. Existing uncommitted Dashboard Stage 2 changes from the prior stage were preserved.
+
+### Dashboard UI Redesign — Stage 2
+
+- Reworked the Dashboard header into a left-aligned, wrapping action toolbar and gave the filter row responsive minimum widths so controls wrap instead of crowding.
+- Standardized Dashboard card surfaces and spacing on an 8px rhythm, clarified section headings, and arranged KPI cards into responsive one-, two-, or three-column rows.
+- Enabled KPI labels, values, and supporting text to wrap instead of truncating; kept the existing metrics and calculations unchanged.
+- Replaced the Dashboard's inline threshold-validation color with a CSS style class. Existing analytics, chart data, asynchronous refresh states, recent evaluations, and Impact Lab behavior remain unchanged.
+- Validation: `mvn clean compile` **BUILD SUCCESS**; `mvn clean test` **BUILD SUCCESS** — 61 tests, 0 failures, 0 errors, 0 skipped. The three `ApplicantRepositoryTest` cases ran and passed.
+- Visual verification: **Needs manual check**; the JavaFX UI was not launched for visual inspection.
+- Files changed: `DashboardView.java`, `KpiCard.java`, `style.css`, `PROGRESS.md`, and `CHANGELOG.md`.
+
 ### Task 4 — Policy Studio, Stage A
 
 - Added a visual, in-memory policy draft tree to the existing create-policy and create-version modals, with nested AND/OR groups, group collapse/expand, and add/remove/duplicate/reorder controls.

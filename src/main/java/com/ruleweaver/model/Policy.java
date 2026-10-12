@@ -64,7 +64,7 @@ public class Policy {
 
     public String getProgramId() { return programId; }
 
-    public void setProgramId(String programId) { this.programId = programId; }
+    public void setProgramId(String programId) { this.programId = programId == null || programId.isBlank() ? null : programId.trim(); }
 
     public int getActiveVersionNumber() {
         if (activeVersionNumber > 0 && getVersion(activeVersionNumber).isPresent()) {
@@ -95,11 +95,14 @@ public class Policy {
 
     public void setVersions(List<PolicyVersion> versions) {
         this.versions = versions != null ? new ArrayList<>(versions) : new ArrayList<>();
+        this.versions.stream().filter(version -> version.getProgramId() == null && programId != null)
+                .forEach(version -> version.setProgramId(programId));
     }
 
     public void addVersion(PolicyVersion version) {
         if (version != null) {
             version.setPolicyId(this.id);
+            if (version.getProgramId() == null) version.setProgramId(this.programId);
             this.versions.add(version);
         }
     }

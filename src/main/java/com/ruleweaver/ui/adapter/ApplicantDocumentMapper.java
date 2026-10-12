@@ -30,6 +30,7 @@ public class ApplicantDocumentMapper {
         }
 
         doc.append("name", applicant.getName() != null ? applicant.getName().trim() : "");
+        doc.append("programId", applicant.getProgramId());
         doc.append("email", applicant.getEmail() != null ? applicant.getEmail().trim() : "");
         doc.append("gpa", applicant.getGpa());
         doc.append("interviewScore", applicant.getInterviewScore());
@@ -80,6 +81,8 @@ public class ApplicantDocumentMapper {
             customAttrs.putAll((Document) rawAttrs);
         }
 
-        return new Applicant(id, name, email, gpa, interviewScore, skills, customAttrs);
+        Applicant applicant = new Applicant(id, name, email, gpa, interviewScore, skills, customAttrs);
+        applicant.setProgramId(doc.getString("programId"));
+        return applicant;
     }
 }

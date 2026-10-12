@@ -7,8 +7,6 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Sorts;
-import com.ruleweaver.engine.Condition;
-import com.ruleweaver.engine.ConditionDocumentMapper;
 import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
 import org.bson.Document;
@@ -56,7 +54,7 @@ public class MongoPolicyRepository implements PolicyRepository {
         Policy policy = toPolicy(document);
         List<PolicyVersion> policyVersions = versions.find(Filters.eq("policyId", id))
                 .sort(Sorts.ascending("version"))
-                .map(this::toPolicyVersion)
+                .map(PolicyVersionDocumentMapper::fromDocument)
                 .into(new ArrayList<>());
         policy.setVersions(policyVersions);
         return Optional.of(policy);
@@ -106,19 +104,15 @@ public class MongoPolicyRepository implements PolicyRepository {
                     + " already exists for policy " + policyId + "; versions are immutable.");
         }
         version.setPolicyId(policyId);
-        List<Document> conditions = version.getConditions().stream()
-                .map(ConditionDocumentMapper::toDocument)
-                .toList();
+        Document policyDocument = policies.find(Filters.eq("_id", policyId)).first();
+        if (policyDocument != null && version.getProgramId() == null) {
+            version.setProgramId(policyDocument.getString("programId"));
+        }
         String id = version.getId() == null || version.getId().isBlank()
                 ? policyId + "_v" + version.getVersionNumber()
                 : version.getId();
         version.setId(id);
-        Document document = new Document("_id", id)
-                .append("policyId", policyId)
-                .append("version", version.getVersionNumber())
-                .append("description", version.getDescription())
-                .append("createdAt", version.getCreatedAt() == null ? null : version.getCreatedAt().toString())
-                .append("conditions", conditions);
+        Document document = PolicyVersionDocumentMapper.toDocument(version);
         try {
             versions.insertOne(document);
         } catch (com.mongodb.MongoWriteException e) {
@@ -144,23 +138,12 @@ public class MongoPolicyRepository implements PolicyRepository {
     }
 
     private PolicyVersion toPolicyVersion(Document document) {
-        List<Condition> conditions = new ArrayList<>();
-        List<Document> conditionDocuments = document.getList("conditions", Document.class);
-        if (conditionDocuments == null) {
-            conditionDocuments = document.getList("rules", Document.class, List.of());
+        PolicyVersion version = PolicyVersionDocumentMapper.fromDocument(document);
+        if (version.getProgramId() == null) {
+            Document policy = policies.find(Filters.eq("_id", version.getPolicyId())).first();
+            if (policy != null) version.setProgramId(policy.getString("programId"));
         }
-        for (Document conditionDocument : conditionDocuments) {
-            conditions.add(ConditionDocumentMapper.fromDocument(conditionDocument));
-        }
-        Object id = document.get("_id");
-        PolicyVersion version = new PolicyVersion(
-                id == null ? null : id.toString(),
-                document.getString("policyId"),
-                document.getInteger("version", 0),
-                document.getString("description"),
-                conditions);
-        String createdAt = document.getString("createdAt");
-        version.setCreatedAt(createdAt == null ? null : java.time.LocalDateTime.parse(createdAt));
         return version;
     }
+
 }

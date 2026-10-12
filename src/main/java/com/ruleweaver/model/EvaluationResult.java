@@ -3,7 +3,9 @@ package com.ruleweaver.model;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -15,6 +17,8 @@ public class EvaluationResult {
     private String id;
     private String applicantId;
     private String applicantName;
+    private String programId;
+    private int programSchemaRevision;
     private String policyId;
     private String policyName;
     private String policyVersionId;
@@ -22,10 +26,13 @@ public class EvaluationResult {
     private String evaluationRunId;
     private boolean overallDecision;
     private List<ConditionResult> conditionResults;
+    private Map<String, Object> applicantInputSnapshot;
+    private String engineSemanticsVersion;
     private LocalDateTime evaluatedOn;
 
     public EvaluationResult() {
         this.conditionResults = new ArrayList<>();
+        this.applicantInputSnapshot = new LinkedHashMap<>();
         this.evaluatedOn = LocalDateTime.now();
     }
 
@@ -37,6 +44,7 @@ public class EvaluationResult {
         this.policyName = policyName;
         this.policyVersionNumber = policyVersionNumber;
         this.conditionResults = new ArrayList<>();
+        this.applicantInputSnapshot = new LinkedHashMap<>();
         this.evaluatedOn = LocalDateTime.now();
     }
 
@@ -62,6 +70,25 @@ public class EvaluationResult {
 
     public void setApplicantName(String applicantName) {
         this.applicantName = applicantName;
+    }
+
+    public String getProgramId() {
+        return programId;
+    }
+
+    public void setProgramId(String programId) {
+        this.programId = programId == null || programId.isBlank() ? null : programId.trim();
+    }
+
+    public int getProgramSchemaRevision() {
+        return programSchemaRevision;
+    }
+
+    public void setProgramSchemaRevision(int programSchemaRevision) {
+        if (programSchemaRevision < 0) {
+            throw new IllegalArgumentException("Program schema revision cannot be negative.");
+        }
+        this.programSchemaRevision = programSchemaRevision;
     }
 
     public String getPolicyId() {
@@ -118,6 +145,23 @@ public class EvaluationResult {
 
     public void setConditionResults(List<ConditionResult> conditionResults) {
         this.conditionResults = conditionResults != null ? new ArrayList<>(conditionResults) : new ArrayList<>();
+    }
+
+    public Map<String, Object> getApplicantInputSnapshot() {
+        return Collections.unmodifiableMap(applicantInputSnapshot);
+    }
+
+    public void setApplicantInputSnapshot(Map<String, Object> applicantInputSnapshot) {
+        this.applicantInputSnapshot = applicantInputSnapshot == null
+                ? new LinkedHashMap<>() : new LinkedHashMap<>(applicantInputSnapshot);
+    }
+
+    public String getEngineSemanticsVersion() {
+        return engineSemanticsVersion;
+    }
+
+    public void setEngineSemanticsVersion(String engineSemanticsVersion) {
+        this.engineSemanticsVersion = engineSemanticsVersion;
     }
 
     public void addConditionResult(ConditionResult result) {

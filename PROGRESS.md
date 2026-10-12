@@ -8,13 +8,8 @@ RuleWeaver X is a JavaFX desktop application for defining versioned decision pol
 |---|---|
 | Stack | Java 17, JavaFX 20.0.1, Maven, MongoDB Java sync driver 5.12.0, JUnit 5.9.0 |
 | Current branch | `main` |
-<<<<<<< Updated upstream
-| Latest commit | `b3b39ee` — `Restore merged style.css and UI styling updates` |
-| Working tree | Task 0 foundation/persistence, Task 1 program-schema changes, Task 2 Stage A dashboard changes, Task 3 Stage A Impact Lab changes, and Task 4 Stage A Policy Studio changes are uncommitted; pre-existing local config remains ignored. |
-=======
-| Latest commit | `d6e4731` — `Update RuleWeaver X implementation` |
-| Working tree | Contains RuleWeaver X theme, icon, shell, and progress updates; screen work is being delivered in sequence. |
->>>>>>> Stashed changes
+| Latest commit | `e451428` — `Integrate local UI updates with latest main` |
+| Working tree | Dashboard Stage 2 changes from the prior stage remain uncommitted; Applicants Update 3 source, shared CSS, progress, and changelog changes are also uncommitted. |
 | Main source/test layout | `src/main/java`, `src/main/resources`, `src/test/java` |
 
 ## B. Completed Features
@@ -34,15 +29,15 @@ These items have implementation evidence and automated test evidence. Test evide
 
 ## C. Partially Completed Features
 
-- [/] **JavaFX application and views:** `MainApp`, `ViewRouter`, shared controls, and the Dashboard, Applicants, Policies, Evaluation, and Comparison views are implemented and compile as part of the test build. The UI was not launched or manually checked in this update; layout, dialogs, keyboard shortcuts, progress/cancel/retry, and navigation behavior remain unverified.
+- [/] **JavaFX application and views:** `MainApp`, `ViewRouter`, shared controls, and the Dashboard, Applicants, Policies, Evaluation, and Comparison views are implemented and compile as part of the test build. Dashboard Stage 2, Applicants Update 3, and the Policies redesign refine their screen layouts; JavaFX interaction and visual rendering have not been manually checked for these stages.
 - [/] **Policy and evaluation persistence in the running app:** `MongoPolicyRepository`, `PolicyVersionRepository`, `EvaluationRepository`, BSON mappers, and `AppContext` wiring are present. Unit tests cover in-memory service behavior and mapper/schema contracts, while the Atlas tests exercise raw document repository operations; typed policy/evaluation round trips through the full UI are not verified.
-- [/] **Dashboard and what-if UI:** `DashboardView` implements Task 2 Stage A analytics plus the Task 3 Stage A Impact Lab program/policy/base-version selectors, up to three numeric threshold editors, Boolean/multi-select controls, asynchronous simulations, and changed-applicant explanations. Analytics and simulator logic are tested; interaction/rendering and Atlas-backed refresh have not been manually verified.
+- [/] **Dashboard and what-if UI:** `DashboardView` implements Task 2 Stage A analytics plus the Task 3 Stage A Impact Lab program/policy/base-version selectors, up to three numeric threshold editors, Boolean/multi-select controls, asynchronous simulations, and changed-applicant explanations. Stage 2 visual layout work is implemented and compiles/tests; manual interaction/rendering and Atlas-backed refresh have not been verified.
 - [/] **Policy rule builder:** `PolicyRuleBuilder` is integrated into new-policy and new-version modals. It supports schema-driven field/operator/value editors, nested AND/OR groups, add/remove/duplicate/reorder actions, group collapse, validation-gated saving, natural-language/tree previews, and a debounced asynchronous unsaved impact preview. Automated tests cover draft tree semantics and validation; JavaFX interaction has not been manually exercised.
-- [/] **Policy administration and operations:** policy category/archive fields, version selection, and active-version persistence exist in the model/repository. A complete archive/search/audit workflow, evaluation export, and end-user operation checks are not established by the current code/tests.
+- [/] **Policy administration and operations:** policy category/archive fields, version selection, and active-version persistence exist in the model/repository. The Policies screen presents policies, version history, active-version selection, rule details, and existing create/version actions. A complete archive/search/audit workflow, evaluation export, and end-user operation checks are not established by the current code/tests.
 
 ## D. Pending Tasks
 
-- [ ] Manually launch the JavaFX application and exercise the five views, including CRUD dialogs, rule-builder validation, navigation, evaluation history, comparison, Dashboard widgets, and what-if draft flow.
+- [ ] Review Dashboard Stage 2, Applicants Update 3, and the Policies redesign; next, redesign Evaluation, then manually exercise the views, dialogs, rule-builder validation, navigation, evaluation history, comparison, and what-if draft flow.
 - [ ] Add integration coverage for `MongoPolicyRepository` and typed `EvaluationRepository.saveAll`/readback, then verify policy and evaluation flows through `AppContext` against a non-production database.
 - [x] Add offline decision-consistency, repeated-run analytics, and initialization coverage for Task 0.
 - [x] Implement Task 1 program templates, typed field definitions, schema validation, program administration, and offline tests.
@@ -82,29 +77,17 @@ These items have implementation evidence and automated test evidence. Test evide
 
 | Command executed during this update | Outcome |
 |---|---|
-<<<<<<< Updated upstream
 | Task 0 baseline `mvn test` | **BUILD SUCCESS** — 16 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
 | Task 0 updated `mvn test` | **BUILD SUCCESS** — 23 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
 | Task 1 final `mvn test` | **BUILD SUCCESS** — 38 tests, 0 failures, 0 errors, 3 Mongo integration tests skipped because no reachable configured test URI was available. |
 | Task 2 Stage A final `mvn test` | **BUILD SUCCESS** — 44 tests, 0 failures, 0 errors, 3 Atlas-gated integration tests skipped. Compiled 83 production and 14 test Java source files. |
 | Task 3 Stage A final `mvn test` | **BUILD SUCCESS** — 50 tests, 0 failures, 0 errors, 3 Atlas-gated integration tests skipped. Compiled 83 production and 15 test Java source files. |
 | Task 4 Stage A final `mvn test` | **BUILD SUCCESS** — 58 tests, 0 failures, 0 errors, 3 Atlas-gated integration tests skipped. |
+| Dashboard Stage 2 `mvn clean compile` | **BUILD SUCCESS** — compiled 86 production Java source files. |
+| Dashboard Stage 2 `mvn clean test` | **BUILD SUCCESS** — 61 tests, 0 failures, 0 errors, 0 skipped; all three `ApplicantRepositoryTest` cases ran and passed. |
 
-The Task 0 final test build compiled 67 production and 10 test Java source files. The Task 1 final test build compiled 82 production and 13 test Java source files. Maven reported JavaFX effective-model warnings, a `-source`/`-target` module-path warning (suggesting `--release`), and deprecated/unchecked use in `ApplicantsView`. Package/shaded-JAR creation, JavaFX application startup, and live MongoDB verification were not run.
-=======
-| `mvn clean compile` | **BUILD SUCCESS** — compiled all 66 production Java source files. |
-| `mvn clean test` | **BUILD SUCCESS** — 16 tests reported, 0 failures, 0 errors, 3 skipped. The `ApplicantRepositoryTest` Mongo integration tests were skipped because MongoDB was unavailable. |
-| `mvn package -DskipTests` | **BUILD SUCCESS** — shade plugin created `target/ruleweaver-x-1.0-SNAPSHOT.jar`. Its manifest names `com.ruleweaver.MainLauncher`; the entrypoint and `css/style.css` are embedded. |
-
-The theme-stage test build compiled 66 production and 7 test Java source files. Maven reported JavaFX effective-model warnings, a `-source`/`-target` module-path warning (suggesting `--release`), and deprecated/unchecked use in `ApplicantsView`; the UI had not yet been launched at that stage.
-
-### Ikonli startup fix (2026-10-12)
-
-- **Root cause:** The Material Design 2 pack is installed at Ikonli 12.3.1. Its generated handlers use a separate prefix for each icon-letter group (for example, `mdi2p-plus` and `mdi2v-view-dashboard`); the shared icon map incorrectly used the unsupported generic `mdi2-` prefix. All 20 mapped literals were checked against the installed pack and corrected.
-- **Regression coverage:** `IconsTest` constructs every configured icon and confirms an unknown application icon fails fast with a readable `IllegalArgumentException`; no dependency changes were needed.
-- **Verification:** `mvn clean compile` succeeded; `mvn test` succeeded with 19 tests, 0 failures/errors/skips. `mvn javafx:run` started without the icon-resolution exception and remained running after initial startup. The process was stopped after the startup smoke check, so Maven exited with code 1 on termination.
-- **Environment note:** The first clean-compile attempt encountered a JVM 25 access violation; retrying the same command succeeded. The test command also passed after the final icon mappings were applied.
->>>>>>> Stashed changes
+The Task 0 final test build compiled 67 production and 10 test Java source files. The Task 1 final test build compiled 82 production and 13 test Java source files. At that checkpoint, package/shaded-JAR creation, JavaFX application startup, and live MongoDB verification had not been run. Later theme-stage checks packaged the shaded JAR and smoke-started the JavaFX application; the Dashboard Stage 2 test run also ran the three Mongo repository tests successfully.
+The latest Maven run also reported JavaFX effective-model warnings, the `-source`/`-target` module-path warning (suggesting `--release`), and pre-existing deprecated/unchecked use in `ApplicantsView`. `mvn javafx:run` was not part of this Dashboard stage.
 
 ## G. Configuration and Security
 
@@ -123,8 +106,7 @@ The theme-stage test build compiled 66 production and 7 test Java source files. 
 
 ## J. Next Steps
 
-<<<<<<< Updated upstream
-1. **Review and approve Task 4 Stage A** before proceeding. Task 4 Stage B and Task 5 have not been started.
+1. **Review and approve Dashboard Stage 2** before proceeding to the Applicants screen.
 2. **Run a UI smoke pass** across all views, including the Task 3 Impact Lab controls and asynchronous refresh; first confirm the app can connect using local/environment configuration.
 3. **Test typed Atlas persistence end-to-end** for policy snapshots, evaluation batches, restart/readback, and initializer validators using a non-production database.
 4. **Close test gaps** for comparison of stored evaluation runs and Mongo policy/evaluation/program mappers and repositories.
@@ -161,27 +143,36 @@ The theme-stage test build compiled 66 production and 7 test Java source files. 
 - Kept existing create-policy, save-version, and rule-change summary behaviors. Failed policy validation leaves the modal draft intact; no new Stage B version-creation, change-note, or audit workflow was added.
 - Offline rule-draft tests cover nested logical evaluation, field types and validation, preview/tree consistency, draft isolation, duplicate rules, impact calculations, and rejected saves without repository writes.
 - Task 4 Stage B and Task 5 have not been started; Stage A is paused for review.
-=======
-1. **Run a UI smoke pass** across all five views and record observed behavior; first confirm the app can connect using local/environment configuration.
-2. **Test typed Atlas persistence end-to-end** for policy snapshots, evaluation batches, restart/readback, and initializer validators using a non-production database.
-3. **Close test gaps** for rule-engine edge cases, comparison of stored evaluation runs, and Mongo policy/evaluation mappers/repositories.
-4. **Confirm product scope and finish deferred features** (archive/search/audit, composite rule editing, export) before scheduling implementation.
-5. **Add CI and packaging checks** for the supported JavaFX platforms after the test and UI smoke paths are reproducible.
 
-## J. UI Theme Modernization — Staged Delivery
+## N. UI Theme Modernization and Staged Screen Redesigns
 
 - **Dependency compatibility:** AtlantaFX 2.0.1 requires JavaFX 17 or newer, so it is compatible with JavaFX 20.0.1 and does not require changing the Java 17 baseline. Ikonli 12.3.1 is included with its JavaFX bridge and Material Design 2 pack.
 - **Theme and author CSS:** `Theme` selects `PrimerDark` as the sole AtlantaFX user-agent stylesheet entry point. `style.css` remains applied as the scene author stylesheet; default list, combo box, table, scrollbar, dialog, and control styling overrides that conflict with AtlantaFX were removed.
 - **Icons:** Replaced in-house SVG path data with Ikonli FontIcons and CSS-backed icon colors. Updated shared components and icon call sites to use the new node type without redesigning later screens.
+- **Ikonli startup fix:** Corrected all 20 Material Design 2 literals to use the installed pack's group-specific prefixes (such as `mdi2p-plus`); `IconsTest` covers icon resolution and clear failure for unknown application icon keys.
+- **Theme-stage packaging/startup checks:** `mvn package -DskipTests` produced the shaded JAR with `com.ruleweaver.MainLauncher` and `css/style.css`; `mvn javafx:run` started without the icon-resolution exception. The process was stopped after the startup smoke check, so Maven exited with code 1 on termination.
 - **Stage completed:** Sidebar and header markup/styles now use AtlantaFX button and typography helpers where applicable, and inline styles were removed from those shell components.
 - **Style-specific tests:** No `StyleSheetTest` or `StyleClassUsageTest` exists in `src/test/java`.
+- **Dashboard Stage 2:** Reorganized the Dashboard header and actions into a left-aligned wrapping toolbar; standardized dashboard card surfaces and 8px-based spacing; added responsive one/two/three-column KPI rows with wrapping labels and values; clarified analytics, recent-evaluation, decision-funnel, and Impact Lab section headings; and replaced the Dashboard's inline threshold-error color with a CSS class. Existing filters, calculations, charts, asynchronous states, and Impact Lab behavior were retained.
+- **Files changed for Dashboard Stage 2:** `DashboardView.java`, `KpiCard.java`, `style.css`, `PROGRESS.md`, and `CHANGELOG.md`.
+- **Verification:** `mvn clean compile` **BUILD SUCCESS** (86 production sources); `mvn clean test` **BUILD SUCCESS** (61 tests, 0 failures, 0 errors, 0 skipped). The three `ApplicantRepositoryTest` cases ran and passed. No existing test assertions were changed.
+- **Limitations:** Visual verification is **Needs manual check**; this update did not launch or inspect the JavaFX screen. Maven emitted JavaFX effective-model and source/target module-path warnings and pre-existing deprecated/unchecked API warnings in `ApplicantsView`.
+- **Applicants Update 3:** Reorganized the page header, search, and existing create action into a wrapping toolbar; added a clearly headed applicant-records card; improved table row spacing, column labels/alignment, wrapping skill chips, row count, and icon button styling; and restyled the existing add/edit form and field errors. Search/filtering, sorting, keyboard shortcuts, CRUD calls, confirmation, validation, feedback, and data were preserved.
+- **Applicants validation:** `mvn clean compile` **BUILD SUCCESS** (86 production sources); `mvn clean test` **BUILD SUCCESS** (61 tests, 0 failures, 0 errors, 0 skipped). All three `ApplicantRepositoryTest` cases ran and passed. Maven emitted the existing JavaFX model and module-path warnings and unchecked-operation warning for `ApplicantsView`.
+- **Applicants visual limitation:** **Needs manual check**; the UI was not launched or visually inspected for this update.
+- **Policies Update:** Reorganized the screen header and new-policy action, restyled the master/detail cards and policy list, improved version-history and condition readability, and added a compact-width stacked layout plus page scrolling. Existing policy selection, version controls, simulator, rule builder, async service calls, and persistence behavior remain unchanged.
+- **Policies validation:** `mvn clean compile` **BUILD SUCCESS** (86 production sources); `mvn clean test` **BUILD SUCCESS** (61 tests, 0 failures, 0 errors, 0 skipped). The three `ApplicantRepositoryTest` cases ran and passed. Existing JavaFX effective-model/module-path warnings, MongoDB SLF4J warning, JDK native-access warning, and Applicants unchecked-operation warning remain.
+- **Policies visual limitation:** **Needs manual check**; the UI was not launched or visually inspected for this update.
+- **Policies manual checklist:** Verify policy selection and wrapping long names at desktop and compact widths; switch saved versions and set one active; inspect version-history status and condition details; exercise What-if, New Policy, and New Version actions and their existing validation/feedback paths.
+- **Integrated product plan — T001 baseline/action inventory:** Inspected current UI handlers and documented observed behavior, gaps, exact owners, cross-program scope risks, demo-data copy mismatch, and required workflow tests in `docs/ui-action-inventory.md`. The code was not changed. The previously recorded `mvn clean compile` and `mvn clean test` results (86 production sources; 61 tests passing, 0 skipped) are carried forward, not rerun for this documentation-only task. Manual UI behavior remains unverified.
+- **Integrated product plan — T002 data contract:** Drafted `docs/data-ownership-contract.md` after inspecting current models, mappers, repositories, and `PolicyService`. The user approved isolated legacy/unassigned records, immutable schema revisions, saved evaluation context, rebuildable metrics, and dry-run-first migrations as the implementation contract. Applicant hard-delete versus archive remains open. No source/schema or persisted data was changed.
+- **Integrated product plan — T003 relationships and snapshots:** Added nullable `Applicant.programId`, `ProgramConfiguration.schemaRevision`, immutable `ProgramSchemaRevision` records with in-memory and Mongo repositories, and compatible program-schema snapshot links on policy versions and evaluation history. BSON mappers preserve unassigned/missing legacy values (schema revision `0`) and round-trip applicant input snapshots and evaluation semantics metadata; old policy-version records inherit program ownership from their parent when loaded through repository lookups. Added mapper and in-memory repository tests. No migration or persisted user-data changes were executed; applicant deletion behavior remains unchanged. `mvn clean compile` **BUILD SUCCESS** (92 production sources); `mvn clean test` **BUILD SUCCESS** (67 tests, 0 failures, 0 errors, 0 skipped). The three `ApplicantRepositoryTest` cases passed. Maven reported the existing JavaFX model/module-path, MongoDB SLF4J, JDK native-access, and Applicants unchecked-operation warnings. No UI was launched; visual behavior remains **Needs manual check**. Program/schema lifecycle wiring, legacy migration, and additional program/evaluation indexes remain for subsequent tasks.
 
 | Screen stage | Implementation status | Visual result |
 |---|---|---|
 | Sidebar and header | Theme foundation and shell stage implemented | **Needs manual check** |
-| Dashboard | Not started; awaiting sidebar/header review | **Needs manual check** |
-| Applicants | Not started; awaiting earlier stages | **Needs manual check** |
-| Policies | Not started; awaiting earlier stages | **Needs manual check** |
+| Dashboard | Stage 2 redesign implemented; awaiting review | **Needs manual check** |
+| Applicants | Update 3 redesign implemented; awaiting review | **Needs manual check** |
+| Policies | Redesign implemented; awaiting review | **Needs manual check** |
 | Evaluation | Not started; awaiting earlier stages | **Needs manual check** |
 | Time Machine | Not started; awaiting earlier stages | **Needs manual check** |
->>>>>>> Stashed changes

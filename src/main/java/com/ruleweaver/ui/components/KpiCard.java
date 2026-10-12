@@ -30,6 +30,8 @@ public class KpiCard extends VBox {
 
         titleLabel.setText(title);
         titleLabel.getStyleClass().add("kpi-title");
+        titleLabel.setWrapText(true);
+        titleLabel.setMinWidth(0);
         HBox.setHgrow(titleLabel, Priority.ALWAYS);
 
         HBox iconBadge = new HBox();
@@ -46,10 +48,14 @@ public class KpiCard extends VBox {
         // Value
         valueLabel.setText(initialValue);
         valueLabel.getStyleClass().add("kpi-value");
+        valueLabel.setWrapText(true);
+        valueLabel.setMinWidth(0);
 
         // Subtext / Trend badge
         subtextLabel.setText(subtext);
         subtextLabel.getStyleClass().add("kpi-subtext");
+        subtextLabel.setWrapText(true);
+        deltaLabel.setWrapText(true);
         deltaLabel.getStyleClass().addAll("delta-flat");
 
         getChildren().addAll(accentLine, header, valueLabel, deltaLabel, subtextLabel);

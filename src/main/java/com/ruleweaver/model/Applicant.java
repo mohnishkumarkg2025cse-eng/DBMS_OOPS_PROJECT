@@ -9,6 +9,7 @@ import java.util.*;
  */
 public class Applicant {
     private String id;
+    private String programId;
     private String name;
     private String email;
     private double gpa;
@@ -43,6 +44,14 @@ public class Applicant {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getProgramId() {
+        return programId;
+    }
+
+    public void setProgramId(String programId) {
+        this.programId = programId == null || programId.isBlank() ? null : programId.trim();
     }
 
     public String getName() {

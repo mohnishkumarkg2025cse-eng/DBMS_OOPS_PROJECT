@@ -40,5 +40,17 @@ class ProgramDocumentMapperTest {
                 restored.getFields().get(1).getPermittedValues());
         assertEquals(2, restored.getFields().get(1).getValidationRules().minimumLength());
         assertEquals(true, restored.isArchived());
+        assertEquals(original.getSchemaRevision(), restored.getSchemaRevision());
+    }
+
+    @Test
+    void mapsMissingSchemaRevisionAsLegacyRevisionZero() {
+        ProgramConfiguration restored = ProgramDocumentMapper.fromDocument(
+                new org.bson.Document("_id", "legacy-program")
+                        .append("name", "Legacy")
+                        .append("template", ProgramTemplate.MASTERS_ADMISSIONS.name())
+                        .append("fields", List.of()));
+
+        assertEquals(0, restored.getSchemaRevision());
     }
 }

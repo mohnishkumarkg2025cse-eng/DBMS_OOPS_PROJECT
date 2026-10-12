@@ -10,7 +10,6 @@ import com.ruleweaver.config.MongoConfig;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.components.*;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -60,68 +59,125 @@ public class PoliciesView implements BaseView {
 
     private void buildUI() {
         rootPane.getStyleClass().add("page-root");
-        VBox contentBox = new VBox(20);
-        contentBox.getStyleClass().add("page-root");
+        VBox contentBox = new VBox(24);
+        contentBox.getStyleClass().add("policies-page");
         contentBox.setMinWidth(0);
-        contentBox.setPadding(new Insets(28, 32, 28, 32));
+        contentBox.setMaxWidth(Double.MAX_VALUE);
 
-        // 1. Toolbar Header
-        HBox toolbar = createToolbar();
+        VBox toolbar = createToolbar();
 
-        // 2. Master-Detail Layout (SplitPane / HBox)
-        HBox masterDetail = new HBox(20);
+        GridPane masterDetail = new GridPane();
+        masterDetail.setHgap(24);
+        masterDetail.setVgap(16);
         masterDetail.setMinWidth(0);
         VBox.setVgrow(masterDetail, Priority.ALWAYS);
 
-        // Master Column (Policies List)
         VBox masterCol = createMasterColumn();
         masterCol.setPrefWidth(320);
-        masterCol.setMinWidth(280);
+        masterCol.setMinWidth(220);
         masterCol.setMaxWidth(Double.MAX_VALUE);
 
-        // Detail Column (Version & Conditions)
         VBox detailCol = createDetailColumn();
         detailCol.setMinWidth(0);
-        HBox.setHgrow(detailCol, Priority.ALWAYS);
-
-        masterDetail.getChildren().addAll(masterCol, detailCol);
+        detailCol.setMaxWidth(Double.MAX_VALUE);
+        layoutMasterDetail(masterDetail, masterCol, detailCol, 0);
 
         contentBox.getChildren().addAll(toolbar, masterDetail);
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
-        rootPane.getChildren().add(contentBox);
+        ScrollPane pageScroll = new ScrollPane(contentBox);
+        pageScroll.getStyleClass().add("page-root");
+        pageScroll.setFitToWidth(true);
+        pageScroll.setFitToHeight(false);
+        pageScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        pageScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        rootPane.setMinSize(0, 0);
+        rootPane.getChildren().add(pageScroll);
+        rootPane.widthProperty().addListener((observable, oldWidth, width) ->
+                layoutMasterDetail(masterDetail, masterCol, detailCol, width.doubleValue()));
 
-        // Bindings & Selection Handlers
         setupSelectionHandlers();
     }
 
-    private HBox createToolbar() {
-        HBox toolbar = new HBox(16);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
+    private void layoutMasterDetail(GridPane layout, VBox master, VBox detail, double width) {
+        boolean stacked = width > 0 && width < 1040;
+        boolean currentlyStacked = GridPane.getRowIndex(detail) != null
+                && GridPane.getRowIndex(detail) == 1;
+        if (stacked == currentlyStacked && layout.getChildren().containsAll(List.of(master, detail))) {
+            return;
+        }
 
-        VBox titleBox = new VBox(2);
-        Label title = new Label("Policy & Version Manager");
+        layout.getChildren().clear();
+        layout.getColumnConstraints().clear();
+        layout.getRowConstraints().clear();
+        if (stacked) {
+            master.setPrefHeight(240);
+            master.setMaxHeight(300);
+            GridPane.setConstraints(master, 0, 0);
+            GridPane.setConstraints(detail, 0, 1);
+
+            ColumnConstraints column = new ColumnConstraints();
+            column.setHgrow(Priority.ALWAYS);
+            column.setFillWidth(true);
+            layout.getColumnConstraints().add(column);
+            RowConstraints masterRow = new RowConstraints();
+            masterRow.setVgrow(Priority.NEVER);
+            RowConstraints detailRow = new RowConstraints();
+            detailRow.setVgrow(Priority.ALWAYS);
+            layout.getRowConstraints().addAll(masterRow, detailRow);
+        } else {
+            master.setPrefHeight(Region.USE_COMPUTED_SIZE);
+            master.setMaxHeight(Double.MAX_VALUE);
+            GridPane.setConstraints(master, 0, 0);
+            GridPane.setConstraints(detail, 1, 0);
+
+            ColumnConstraints masterColumn = new ColumnConstraints();
+            masterColumn.setPercentWidth(32);
+            masterColumn.setHgrow(Priority.ALWAYS);
+            masterColumn.setFillWidth(true);
+            ColumnConstraints detailColumn = new ColumnConstraints();
+            detailColumn.setPercentWidth(68);
+            detailColumn.setHgrow(Priority.ALWAYS);
+            detailColumn.setFillWidth(true);
+            layout.getColumnConstraints().addAll(masterColumn, detailColumn);
+            RowConstraints row = new RowConstraints();
+            row.setVgrow(Priority.ALWAYS);
+            layout.getRowConstraints().add(row);
+        }
+        layout.getChildren().addAll(master, detail);
+    }
+
+    private VBox createToolbar() {
+        VBox toolbar = new VBox(16);
+        toolbar.getStyleClass().add("policies-toolbar");
+        toolbar.setMinWidth(0);
+        Label title = new Label("Policies");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Configure governance criteria, version snapshots, and threshold rules");
+        Label subtitle = new Label("Manage governance criteria, policy versions, and evaluation rules");
+        subtitle.setWrapText(true);
         subtitle.getStyleClass().add("page-subtitle");
-        titleBox.getChildren().addAll(title, subtitle);
-        HBox.setHgrow(titleBox, Priority.ALWAYS);
 
         Button newPolicyBtn = new Button("New Policy");
         newPolicyBtn.getStyleClass().add("btn-primary");
-        newPolicyBtn.setGraphic(Icons.create(Icons.PLUS, 0.7, "#11111b"));
+        newPolicyBtn.setMinWidth(136);
+        var addIcon = Icons.create(Icons.PLUS, 0.7, (String) null);
+        addIcon.getStyleClass().add("policy-primary-icon");
+        newPolicyBtn.setGraphic(addIcon);
         newPolicyBtn.setOnAction(e -> showPolicyModal(null));
 
-        toolbar.getChildren().addAll(titleBox, newPolicyBtn);
+        FlowPane actions = new FlowPane(16, 8, newPolicyBtn);
+        actions.setAlignment(Pos.CENTER_LEFT);
+        actions.setMaxWidth(Double.MAX_VALUE);
+        toolbar.getChildren().addAll(title, subtitle, actions);
         return toolbar;
     }
 
     private VBox createMasterColumn() {
-        VBox card = new VBox(12);
-        card.getStyleClass().add("card");
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", "policies-card", "policy-master-card");
 
-        Label masterTitle = new Label("DEFINED POLICIES");
-        masterTitle.getStyleClass().add("caption-label");
+        Label masterTitle = new Label("Defined policies");
+        masterTitle.getStyleClass().add("policy-section-title");
 
         policyListView.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -131,8 +187,8 @@ public class PoliciesView implements BaseView {
                     setText(null);
                     setGraphic(null);
                 } else {
-                    VBox box = new VBox(4);
-                    box.setPadding(new Insets(6, 4, 6, 4));
+                    VBox box = new VBox(8);
+                    box.getStyleClass().add("policy-list-item");
                     box.setMaxWidth(Double.MAX_VALUE);
 
                     HBox titleRow = new HBox(8);
@@ -141,24 +197,32 @@ public class PoliciesView implements BaseView {
 
                     Label nameLbl = new Label(policy.getName());
                     nameLbl.getStyleClass().add("policy-row-name");
-                    nameLbl.setTextOverrun(OverrunStyle.ELLIPSIS);
-                    nameLbl.setWrapText(false);
+                    nameLbl.setWrapText(true);
                     nameLbl.setMinWidth(0);
                     nameLbl.setMaxWidth(Double.MAX_VALUE);
                     HBox.setHgrow(nameLbl, Priority.ALWAYS);
 
                     StatusBadge versionBadge = StatusBadge.info("v" + policy.getVersions().size());
+                    versionBadge.setMinWidth(Region.USE_PREF_SIZE);
                     titleRow.getChildren().addAll(nameLbl, versionBadge);
 
                     Label idLbl = new Label("ID: " + policy.getId());
                     idLbl.getStyleClass().add("policy-row-id");
+                    idLbl.setWrapText(true);
 
                     box.getChildren().addAll(titleRow, idLbl);
                     setGraphic(box);
                 }
             }
         });
-        policyListView.getStyleClass().add("policy-list");
+        policyListView.getStyleClass().addAll("policy-list", "policies-list");
+        policyListView.setPlaceholder(new EmptyState(
+                Icons.POLICIES,
+                "No policies yet",
+                "Create a policy to define versioned evaluation criteria.",
+                null,
+                null
+        ));
         VBox.setVgrow(policyListView, Priority.ALWAYS);
 
         card.getChildren().addAll(masterTitle, policyListView);
@@ -219,7 +283,9 @@ public class PoliciesView implements BaseView {
 
         setActiveBtn.getStyleClass().add("btn-secondary");
         setActiveBtn.setMinWidth(Region.USE_PREF_SIZE);
-        setActiveBtn.setGraphic(Icons.create(Icons.CHECK, 0.65, "#a6e3a1"));
+        var checkIcon = Icons.create(Icons.CHECK, 0.65, (String) null);
+        checkIcon.getStyleClass().add("policy-success-icon");
+        setActiveBtn.setGraphic(checkIcon);
         setActiveBtn.setOnAction(e -> {
             PolicyVersion selected = versionComboBox.getValue();
             if (selected != null) {
@@ -229,7 +295,9 @@ public class PoliciesView implements BaseView {
 
         newVersionBtn.getStyleClass().add("btn-primary");
         newVersionBtn.setMinWidth(Region.USE_PREF_SIZE);
-        newVersionBtn.setGraphic(Icons.create(Icons.PLUS, 0.7, "#11111b"));
+        var versionIcon = Icons.create(Icons.PLUS, 0.7, (String) null);
+        versionIcon.getStyleClass().add("policy-primary-icon");
+        newVersionBtn.setGraphic(versionIcon);
         newVersionBtn.setOnAction(e -> {
             Policy selected = policyListView.getSelectionModel().getSelectedItem();
             if (selected != null) {
@@ -254,8 +322,8 @@ public class PoliciesView implements BaseView {
         VBox historySection = createVersionHistory();
 
         // Conditions Section
-        Label conditionsHeader = new Label("ACTIVE EVALUATION RULES");
-        conditionsHeader.getStyleClass().add("caption-label");
+        Label conditionsHeader = new Label("Active evaluation rules");
+        conditionsHeader.getStyleClass().add("policy-section-title");
 
         ScrollPane scroll = new ScrollPane(conditionsContainer);
         scroll.getStyleClass().add("page-root");
@@ -269,9 +337,11 @@ public class PoliciesView implements BaseView {
     }
 
     private VBox createVersionHistory() {
-        VBox section = new VBox(8);
-        Label title = new Label("VERSION HISTORY");
-        title.getStyleClass().add("caption-label");
+        VBox section = new VBox(12);
+        Label title = new Label("Version history");
+        title.getStyleClass().add("policy-section-title");
+        versionHistoryTable.getStyleClass().add("policy-version-table");
+        versionHistoryTable.setPlaceholder(new Label("No versions available"));
         versionHistoryTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         versionHistoryTable.setPrefHeight(170);
 
@@ -426,7 +496,7 @@ public class PoliciesView implements BaseView {
         List<Condition> conditions = version.getConditions();
         Label preview = new Label(ConditionRow.toPreviewSentence(conditions));
         preview.setWrapText(true);
-        preview.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: -color-accent;");
+        preview.getStyleClass().add("policy-rule-preview");
         conditionsContainer.getChildren().add(preview);
 
         FlowPane diffChips = new FlowPane(8, 8);
@@ -458,14 +528,15 @@ public class PoliciesView implements BaseView {
             row.getStyleClass().add("policy-condition-row");
 
             Label num = new Label(String.valueOf(i + 1));
-            num.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: -color-accent;");
+            num.getStyleClass().add("policy-condition-number");
 
             VBox ruleInfo = new VBox(2);
             Label name = new Label(c.getMessage());
-            name.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
+            name.getStyleClass().add("policy-condition-name");
+            name.setWrapText(true);
 
             Label type = new Label("Type: " + c.getType());
-            type.setStyle("-fx-font-size: 11px; -fx-text-fill: -color-text-muted;");
+            type.getStyleClass().add("policy-condition-type");
 
             ruleInfo.getChildren().addAll(name, type);
             HBox.setHgrow(ruleInfo, Priority.ALWAYS);
@@ -488,7 +559,7 @@ public class PoliciesView implements BaseView {
         box.setPrefWidth(900);
 
         Label title = new Label("Define New Business Policy");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
+        title.getStyleClass().add("policy-modal-title");
 
         TextField nameInput = new TextField();
         nameInput.setPromptText("Policy Name (e.g. Merit Scholarship Eligibility)");
@@ -629,7 +700,7 @@ public class PoliciesView implements BaseView {
 
         int nextVerNum = policy.getVersions().size() + 1;
         Label title = new Label("Create Version " + nextVerNum + " for '" + policy.getName() + "'");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
+        title.getStyleClass().add("policy-modal-title");
 
         TextField descInput = new TextField(initialNote);
         descInput.setPromptText("Version change rationale / notes");

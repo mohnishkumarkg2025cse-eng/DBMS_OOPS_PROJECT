@@ -7,6 +7,7 @@ public final class ProgramConfiguration {
     private String name;
     private final ProgramTemplate template;
     private List<FieldDefinition> fields;
+    private int schemaRevision;
     private boolean archived;
 
     public ProgramConfiguration(String id, String name, ProgramTemplate template, List<FieldDefinition> fields) {
@@ -23,6 +24,7 @@ public final class ProgramConfiguration {
     public String getName() { return name; }
     public ProgramTemplate getTemplate() { return template; }
     public List<FieldDefinition> getFields() { return fields; }
+    public int getSchemaRevision() { return schemaRevision; }
     public boolean isArchived() { return archived; }
     public FieldRegistry getFieldRegistry() { return new FieldRegistry(fields); }
 
@@ -37,10 +39,16 @@ public final class ProgramConfiguration {
         this.fields = replacement;
     }
 
+    public void setSchemaRevision(int schemaRevision) {
+        if (schemaRevision < 0) throw new IllegalArgumentException("Schema revision cannot be negative.");
+        this.schemaRevision = schemaRevision;
+    }
+
     public void setArchived(boolean archived) { this.archived = archived; }
 
     public ProgramConfiguration copy() {
         ProgramConfiguration copy = new ProgramConfiguration(id, name, template, fields);
+        copy.setSchemaRevision(schemaRevision);
         copy.setArchived(archived);
         return copy;
     }
