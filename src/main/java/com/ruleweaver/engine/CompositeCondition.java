@@ -41,6 +41,13 @@ public class CompositeCondition extends AbstractCondition {
         this.subconditions.remove(condition);
     }
 
+    public void setSubcondition(int index, Condition condition) {
+        if (condition == null) {
+            throw new IllegalArgumentException("Composite subcondition is required.");
+        }
+        subconditions.set(index, condition);
+    }
+
     public List<Condition> getSubconditions() {
         return Collections.unmodifiableList(subconditions);
     }

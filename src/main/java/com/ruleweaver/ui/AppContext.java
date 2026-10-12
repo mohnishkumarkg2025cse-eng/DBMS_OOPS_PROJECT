@@ -10,6 +10,7 @@ import com.ruleweaver.model.PolicyVersion;
 import com.ruleweaver.repository.*;
 import com.ruleweaver.service.ComparisonService;
 import com.ruleweaver.service.PolicyService;
+import com.ruleweaver.service.ProgramService;
 import com.ruleweaver.ui.adapter.ApplicantDocumentMapper;
 import com.ruleweaver.ui.components.Toast;
 import javafx.application.Platform;
@@ -51,6 +52,8 @@ public class AppContext {
     private DecisionEngine decisionEngine;
     private ComparisonService comparisonService;
     private PolicyService policyService;
+    private ProgramRepository programRepository;
+    private ProgramService programService;
 
     // Observable App State
     private final ObservableList<Applicant> applicants = FXCollections.observableArrayList();
@@ -60,6 +63,7 @@ public class AppContext {
     private final ObjectProperty<Policy> selectedPolicy = new SimpleObjectProperty<>();
     private final ObjectProperty<PolicyVersion> selectedVersion = new SimpleObjectProperty<>();
     private final ObjectProperty<PolicyVersion> activeVersion = new SimpleObjectProperty<>();
+    private final ObjectProperty<com.ruleweaver.model.ProgramConfiguration> selectedProgram = new SimpleObjectProperty<>();
 
     private final BooleanProperty mongoOnline = new SimpleBooleanProperty(false);
     private final BooleanProperty reducedMotion = new SimpleBooleanProperty(false);
@@ -97,6 +101,10 @@ public class AppContext {
                 this.decisionEngine,
                 this.comparisonService
         );
+        this.programRepository = new InMemoryProgramRepository();
+        this.programService = new ProgramService(programRepository);
+        this.programService.ensureTemplates();
+        this.policyService.setProgramService(programService);
     }
 
     /**
@@ -108,11 +116,14 @@ public class AppContext {
             protected MongoRepositories call() {
                 MongoDatabase db = MongoConfig.getDatabase();
                 db.runCommand(new Document("ping", 1));
+                ProgramRepository programs = new MongoProgramRepository(db);
+                new ProgramService(programs).ensureTemplates();
                 return new MongoRepositories(
                         new ApplicantRepository(db),
                         new MongoPolicyRepository(db),
                         new PolicyVersionRepository(db),
-                        new EvaluationRepository(db));
+                        new EvaluationRepository(db),
+                        programs);
             }
         };
         task.setOnSucceeded(event -> {
@@ -121,9 +132,12 @@ public class AppContext {
             policyRepository = repositories.policies();
             policyVersionRepository = repositories.versions();
             evaluationRepository = repositories.evaluations();
+            programRepository = repositories.programs();
+            programService = new ProgramService(programRepository);
             evaluationResultRepository = evaluationRepository;
             policyService = new PolicyService(
                     policyRepository, evaluationResultRepository, decisionEngine, comparisonService);
+            policyService.setProgramService(programService);
             mongoOnline.set(true);
             if (onConnected != null) {
                 onConnected.run();
@@ -302,7 +316,8 @@ public class AppContext {
             ApplicantRepository applicants,
             PolicyRepository policies,
             PolicyVersionRepository versions,
-            EvaluationRepository evaluations) {
+            EvaluationRepository evaluations,
+            ProgramRepository programs) {
     }
 
     // Getters
@@ -315,6 +330,8 @@ public class AppContext {
     public DecisionEngine getDecisionEngine() { return decisionEngine; }
     public ComparisonService getComparisonService() { return comparisonService; }
     public PolicyService getPolicyService() { return policyService; }
+    public ProgramRepository getProgramRepository() { return programRepository; }
+    public ProgramService getProgramService() { return programService; }
 
     public ObservableList<Applicant> getApplicants() { return applicants; }
     public ObservableList<Policy> getPolicies() { return policies; }
@@ -323,6 +340,7 @@ public class AppContext {
     public ObjectProperty<Policy> selectedPolicyProperty() { return selectedPolicy; }
     public ObjectProperty<PolicyVersion> selectedVersionProperty() { return selectedVersion; }
     public ObjectProperty<PolicyVersion> activeVersionProperty() { return activeVersion; }
+    public ObjectProperty<com.ruleweaver.model.ProgramConfiguration> selectedProgramProperty() { return selectedProgram; }
 
     public BooleanProperty mongoOnlineProperty() { return mongoOnline; }
     public BooleanProperty reducedMotionProperty() { return reducedMotion; }

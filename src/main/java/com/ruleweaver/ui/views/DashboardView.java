@@ -3,6 +3,7 @@ package com.ruleweaver.ui.views;
 import com.ruleweaver.config.MongoConfig;
 import com.ruleweaver.model.*;
 import com.ruleweaver.service.WhatIfSimulator;
+import com.ruleweaver.service.DashboardAnalytics;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.adapter.ApplicantDocumentMapper;
 import com.ruleweaver.ui.components.*;
@@ -17,12 +18,17 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.chart.*;
 import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Hyperlink;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -40,9 +46,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.stream.Collectors;
 
 /**
  * Screen 4: Executive Overview Dashboard with live KPI cards, animated charts,
@@ -60,6 +66,7 @@ public class DashboardView implements BaseView {
     private KpiCard totalCard;
     private KpiCard eligibleCard;
     private KpiCard rejectedCard;
+    private KpiCard nearMissCard;
     private KpiCard passRateCard;
     private KpiCard impactCard;
     private final StackPane kpiSlot = new StackPane();
@@ -88,33 +95,51 @@ public class DashboardView implements BaseView {
     private final Label donutCenterLabel = new Label("PASS RATE");
     private final TableView<EvaluationResult> recentEvaluations = new TableView<>();
     private final VBox needsAttentionList = new VBox(8);
+    private final Label sampleSummaryLabel = new Label();
+    private final Label baselineSummaryLabel = new Label();
+    private final Label ruleSampleSummaryLabel = new Label();
     private final DateTimeFormatter updatedFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a");
     private final Map<StackPane, List<Timeline>> shimmerAnimations = new HashMap<>();
     private final Map<StackPane, List<Region>> skeletonRegions = new HashMap<>();
+    private final ComboBox<ProgramConfiguration> whatIfProgramChoice = new ComboBox<>();
+    private final ComboBox<Policy> whatIfPolicyChoice = new ComboBox<>();
     private final ComboBox<PolicyVersion> whatIfVersionChoice = new ComboBox<>();
-    private final ComboBox<WhatIfSimulator.NumericRule> whatIfRuleChoice = new ComboBox<>();
     private final ComboBox<Policy> policyChoice = new ComboBox<>();
-    private final Slider whatIfThreshold = new Slider();
-    private final Label whatIfThresholdValue = new Label();
-    private final Label whatIfSummary = new Label("Choose a version and numeric rule to begin.");
+    private final ComboBox<ProgramConfiguration> programFilter = new ComboBox<>();
+    private final ComboBox<PolicyVersion> versionFilter = new ComboBox<>();
+    private final ComboBox<DashboardAnalytics.RunOption> runFilter = new ComboBox<>();
+    private final ComboBox<DashboardAnalytics.DecisionFilter> decisionFilter = new ComboBox<>();
+    private final VBox whatIfThresholdEditors = new VBox(8);
+    private final VBox whatIfFieldEditors = new VBox(8);
+    private final List<ThresholdEditor> thresholdEditors = new ArrayList<>();
+    private final List<BooleanRuleEditor> booleanRuleEditors = new ArrayList<>();
+    private final List<MultiSelectRuleEditor> multiSelectRuleEditors = new ArrayList<>();
+    private final Label whatIfSummary = new Label("Select a program, policy, and base version to begin.");
     private final Label whatIfDelta = new Label("No simulation");
+    private final ProgressBar whatIfProgressBar = new ProgressBar();
     private final Label selectedPolicyChip = new Label("No policy selected");
-    private final Label versionChip = new Label("—");
     private final Label lastUpdatedLabel = new Label("Not updated yet");
     private final Button runWhatIfButton = new Button("Run What-if");
+    private final Button cancelWhatIfButton = new Button("Cancel Simulation");
     private final Button saveWhatIfButton = new Button("Save as New Version");
     private final Button refreshButton = new Button();
     private final Button evaluateAllButton = new Button("Evaluate All");
     private final Button cancelEvaluationButton = new Button("Cancel");
     private final TableView<WhatIfSimulator.ApplicantFlip> whatIfFlips = new TableView<>();
     private final WhatIfSimulator whatIfSimulator;
+    private final DashboardAnalytics dashboardAnalytics = new DashboardAnalytics();
     private final BiConsumer<Policy, PolicyVersion> openNewVersionDraft;
     private WhatIfSimulator.SimulationResult lastSimulation;
     private Task<List<EvaluationResult>> activeEvaluationTask;
+    private Task<DashboardSnapshot> activeDashboardTask;
+    private Task<WhatIfSimulator.SimulationResult> activeWhatIfTask;
     private boolean syncingPolicyChoice;
+    private boolean syncingFilters;
+    private boolean configuringImpactLab;
     private boolean hasAnimatedEntrance;
     private int responsiveColumnCount;
     private long refreshGeneration;
+    private long whatIfGeneration;
 
     public DashboardView() {
         this((policy, version) -> { });
@@ -138,12 +163,13 @@ public class DashboardView implements BaseView {
         rootPane.setMinSize(0, 0);
 
         HBox header = createHeader();
+        FlowPane filters = createFiltersRow();
         createKpiRow();
         createChartsRow();
         VBox recentCard = createRecentEvaluationsCard();
         VBox attentionCard = createNeedsAttentionCard();
         VBox whatIfCard = createWhatIfCard();
-        layoutDashboard(header, recentCard, attentionCard, whatIfCard, 0);
+        layoutDashboard(header, filters, recentCard, attentionCard, whatIfCard, 0);
 
         scrollPane.setContent(contentBox);
         scrollPane.getStyleClass().add("page-root");
@@ -158,11 +184,10 @@ public class DashboardView implements BaseView {
         ctx.resultsChangedProperty().addListener((observable, oldValue, newValue) -> refreshDashboard());
         ctx.selectedPolicyProperty().addListener((observable, oldValue, newValue) -> {
             syncHeaderPolicy(newValue);
-            configureWhatIfVersions(newValue);
             refreshDashboard();
         });
         ctx.selectedVersionProperty().addListener((observable, oldValue, newValue) -> {
-            updateVersionChip(newValue);
+            syncVersionFilter(newValue);
             refreshDashboard();
         });
         ctx.reducedMotionProperty().addListener((observable, oldValue, newValue) -> {
@@ -171,15 +196,36 @@ public class DashboardView implements BaseView {
             updateShimmerAnimations(newValue);
         });
         rootPane.widthProperty().addListener((observable, oldWidth, width) ->
-                layoutDashboard(header, recentCard, attentionCard, whatIfCard, width.doubleValue()));
+                layoutDashboard(header, filters, recentCard, attentionCard, whatIfCard, width.doubleValue()));
         scrollPane.viewportBoundsProperty().addListener((observable, oldBounds, bounds) ->
-                layoutDashboard(header, recentCard, attentionCard, whatIfCard, bounds.getWidth()));
+                layoutDashboard(header, filters, recentCard, attentionCard, whatIfCard, bounds.getWidth()));
         syncHeaderPolicy(ctx.selectedPolicyProperty().get());
-        updateVersionChip(ctx.selectedVersionProperty().get());
+        whatIfProgramChoice.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (configuringImpactLab) return;
+            configureImpactLabPolicies();
+            invalidateImpactSimulation();
+        });
+        whatIfPolicyChoice.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (configuringImpactLab) return;
+            if (newValue != null && newValue.getProgramId() != null
+                    && !Objects.equals(whatIfProgramChoice.getValue() == null
+                            ? null : whatIfProgramChoice.getValue().getId(), newValue.getProgramId())) {
+                ProgramConfiguration matchingProgram = whatIfProgramChoice.getItems().stream()
+                        .filter(program -> Objects.equals(program.getId(), newValue.getProgramId()))
+                        .findFirst().orElse(null);
+                if (matchingProgram != null) {
+                    configuringImpactLab = true;
+                    whatIfProgramChoice.setValue(matchingProgram);
+                    configuringImpactLab = false;
+                    configureImpactLabPolicies();
+                    return;
+                }
+            }
+            configureWhatIfVersions(newValue);
+            invalidateImpactSimulation();
+        });
         whatIfVersionChoice.valueProperty().addListener((observable, oldValue, newValue) ->
                 configureWhatIfRules(newValue));
-        whatIfRuleChoice.valueProperty().addListener((observable, oldValue, newValue) ->
-                configureWhatIfThreshold(newValue));
         policyChoice.valueProperty().addListener((observable, oldValue, newValue) -> {
             if (syncingPolicyChoice) return;
             ctx.selectedPolicyProperty().set(newValue);
@@ -194,102 +240,252 @@ public class DashboardView implements BaseView {
             if (activeEvaluationTask != null) activeEvaluationTask.cancel(true);
         });
         syncHeaderPolicy(ctx.selectedPolicyProperty().get());
-        updateVersionChip(ctx.selectedVersionProperty().get());
-        configureWhatIfVersions(ctx.selectedPolicyProperty().get());
+        syncVersionFilter(ctx.selectedVersionProperty().get());
     }
 
     private VBox createWhatIfCard() {
         VBox card = new VBox(12);
         card.getStyleClass().addAll("card", "whatif-card");
-        Label title = new Label("WHAT-IF SIMULATOR");
+        Label title = new Label("IMPACT LAB — WHAT-IF SIMULATOR");
         title.getStyleClass().add("caption-label");
 
+        configureImpactLabSelector(whatIfProgramChoice, "All programs", ProgramConfiguration::getName);
+        configureImpactLabSelector(whatIfPolicyChoice, "Select policy", Policy::getName);
+        whatIfProgramChoice.setPrefWidth(190);
+        whatIfPolicyChoice.setPrefWidth(220);
         whatIfVersionChoice.setPromptText("Select version");
         whatIfVersionChoice.setPrefWidth(180);
-        whatIfVersionChoice.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+        whatIfVersionChoice.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(PolicyVersion version, boolean empty) {
                 super.updateItem(version, empty);
                 setText(empty || version == null ? null : "Version " + version.getVersionNumber());
             }
         });
-        whatIfVersionChoice.setButtonCell(new javafx.scene.control.ListCell<>() {
+        whatIfVersionChoice.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(PolicyVersion version, boolean empty) {
                 super.updateItem(version, empty);
                 setText(empty || version == null ? "Select version" : "Version " + version.getVersionNumber());
             }
         });
-        whatIfRuleChoice.setPromptText("Select numeric rule");
-        whatIfRuleChoice.setPrefWidth(250);
-        whatIfThreshold.setShowTickMarks(true);
-        whatIfThreshold.setShowTickLabels(true);
-        whatIfThreshold.setPrefWidth(280);
-        whatIfThreshold.valueProperty().addListener((observable, oldValue, newValue) ->
-                whatIfThresholdValue.setText(String.format("%.2f", newValue.doubleValue())));
-        whatIfThresholdValue.getStyleClass().add("whatif-number");
-
-        Label versionLabel = new Label("Version");
-        versionLabel.getStyleClass().add("policy-inline-label");
-        Label ruleLabel = new Label("Numeric rule");
-        ruleLabel.getStyleClass().add("policy-inline-label");
-        HBox selectors = new HBox(10,
-                versionLabel, whatIfVersionChoice, ruleLabel, whatIfRuleChoice);
+        Label programLabel = new Label("Program");
+        Label policyLabel = new Label("Policy");
+        Label versionLabel = new Label("Base version");
+        for (Label label : List.of(programLabel, policyLabel, versionLabel)) {
+            label.getStyleClass().add("policy-inline-label");
+        }
+        FlowPane selectors = new FlowPane(10, 8, programLabel, whatIfProgramChoice,
+                policyLabel, whatIfPolicyChoice, versionLabel, whatIfVersionChoice);
         selectors.setAlignment(Pos.CENTER_LEFT);
-        Label thresholdLabel = new Label("Test threshold");
-        thresholdLabel.getStyleClass().add("policy-inline-label");
-        HBox thresholdRow = new HBox(10, thresholdLabel, whatIfThreshold, whatIfThresholdValue);
-        thresholdRow.setAlignment(Pos.CENTER_LEFT);
 
+        Label numericTitle = new Label("NUMERIC THRESHOLDS (UP TO 3)");
+        numericTitle.getStyleClass().add("caption-label");
+        Label numericHelp = new Label("Choose up to three numeric rules. Adjust with the slider or enter an exact value.");
+        numericHelp.getStyleClass().add("page-subtitle");
+        whatIfThresholdEditors.setFillWidth(true);
+        for (int index = 0; index < 3; index++) {
+            ThresholdEditor editor = createThresholdEditor(index);
+            thresholdEditors.add(editor);
+            whatIfThresholdEditors.getChildren().add(editor.row());
+        }
+        VBox numericSection = new VBox(6, numericTitle, numericHelp, whatIfThresholdEditors);
+
+        Label fieldTitle = new Label("BOOLEAN AND MULTI-SELECT RULES");
+        fieldTitle.getStyleClass().add("caption-label");
+        whatIfFieldEditors.setFillWidth(true);
+        VBox fieldSection = new VBox(6, fieldTitle, whatIfFieldEditors);
+
+        runWhatIfButton.setText("Run Simulation");
         runWhatIfButton.getStyleClass().add("btn-primary");
         runWhatIfButton.setOnAction(event -> runWhatIfSimulation());
+        cancelWhatIfButton.getStyleClass().add("btn-secondary");
+        cancelWhatIfButton.setDisable(true);
+        cancelWhatIfButton.setOnAction(event -> {
+            if (activeWhatIfTask != null) activeWhatIfTask.cancel(true);
+        });
         saveWhatIfButton.getStyleClass().add("btn-secondary");
         saveWhatIfButton.setDisable(true);
         saveWhatIfButton.setOnAction(event -> {
-            Policy policy = AppContext.getInstance().selectedPolicyProperty().get();
+            Policy policy = whatIfPolicyChoice.getValue();
             if (policy != null && lastSimulation != null) {
                 openNewVersionDraft.accept(policy, lastSimulation.simulatedVersion());
             }
         });
-        HBox actions = new HBox(10, runWhatIfButton, saveWhatIfButton);
+        HBox actions = new HBox(10, runWhatIfButton, cancelWhatIfButton, saveWhatIfButton);
         actions.setAlignment(Pos.CENTER_LEFT);
 
         whatIfSummary.setWrapText(true);
         whatIfSummary.getStyleClass().add("page-subtitle");
         whatIfDelta.getStyleClass().add("flip-chip-gain");
+        whatIfProgressBar.setMaxWidth(Double.MAX_VALUE);
+        whatIfProgressBar.setVisible(false);
+        whatIfProgressBar.setManaged(false);
         TableColumn<WhatIfSimulator.ApplicantFlip, String> applicantColumn =
                 new TableColumn<>("Applicant");
-        applicantColumn.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().applicantName()));
-        TableColumn<WhatIfSimulator.ApplicantFlip, String> failingRuleColumn =
-                new TableColumn<>("Failing rule");
-        failingRuleColumn.setCellValueFactory(cell ->
+        applicantColumn.setCellValueFactory(cell -> {
+            WhatIfSimulator.ApplicantFlip flip = cell.getValue();
+            String name = Objects.requireNonNullElse(flip.applicantName(), "Unnamed applicant");
+            return new SimpleStringProperty(flip.applicantId() == null
+                    ? name : name + " (" + flip.applicantId() + ")");
+        });
+        TableColumn<WhatIfSimulator.ApplicantFlip, String> decisionColumn =
+                new TableColumn<>("Decision change");
+        decisionColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+                (cell.getValue().baselineEligible() ? "Eligible" : "Rejected") + " → "
+                        + (cell.getValue().simulatedEligible() ? "Eligible" : "Rejected")));
+        TableColumn<WhatIfSimulator.ApplicantFlip, String> responsibleConditionColumn =
+                new TableColumn<>("Responsible condition(s)");
+        responsibleConditionColumn.setCellValueFactory(cell ->
                 new SimpleStringProperty(cell.getValue().failingRule()));
-        whatIfFlips.getColumns().setAll(applicantColumn, failingRuleColumn);
+        whatIfFlips.getColumns().setAll(applicantColumn, decisionColumn, responsibleConditionColumn);
         whatIfFlips.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         whatIfFlips.setPrefHeight(180);
+        whatIfFlips.setPlaceholder(new Label("No applicants changed decisions."));
         VBox.setVgrow(whatIfResultsSlot, Priority.ALWAYS);
 
         whatIfResultsSlot.getStyleClass().add("widget-slot");
         whatIfResultsSlot.getChildren().setAll(whatIfFlips);
-        card.getChildren().addAll(title, selectors, thresholdRow, actions, whatIfSummary,
-                whatIfDelta, whatIfResultsSlot);
+        card.getChildren().addAll(title, selectors, numericSection, fieldSection, actions,
+                whatIfProgressBar, whatIfSummary, whatIfDelta, whatIfResultsSlot);
         return card;
+    }
+
+    private <T> void configureImpactLabSelector(ComboBox<T> combo, String prompt,
+                                                Function<T, String> itemLabel) {
+        combo.setPromptText(prompt);
+        combo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : itemLabel.apply(item));
+            }
+        });
+        combo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? prompt : itemLabel.apply(item));
+            }
+        });
+    }
+
+    private ThresholdEditor createThresholdEditor(int index) {
+        Label indexLabel = new Label("Threshold " + (index + 1));
+        indexLabel.getStyleClass().add("policy-inline-label");
+        ComboBox<WhatIfSimulator.NumericRule> ruleChoice = new ComboBox<>();
+        ruleChoice.setPromptText("Choose numeric rule");
+        ruleChoice.setPrefWidth(220);
+        ruleChoice.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(WhatIfSimulator.NumericRule rule, boolean empty) {
+                super.updateItem(rule, empty);
+                setText(empty || rule == null ? null : rule.label());
+            }
+        });
+        ruleChoice.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(WhatIfSimulator.NumericRule rule, boolean empty) {
+                super.updateItem(rule, empty);
+                setText(empty || rule == null ? "Choose numeric rule" : rule.label());
+            }
+        });
+        Slider slider = new Slider();
+        slider.setShowTickMarks(true);
+        slider.setPrefWidth(220);
+        Spinner<Double> numericInput = new Spinner<>();
+        numericInput.setEditable(true);
+        numericInput.setPrefWidth(100);
+        HBox row = new HBox(10, indexLabel, ruleChoice, slider, numericInput);
+        row.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(slider, Priority.ALWAYS);
+        ruleChoice.valueProperty().addListener((observable, oldRule, newRule) -> {
+            configureThresholdEditor(new ThresholdEditor(row, ruleChoice, slider, numericInput), newRule);
+            if (!configuringImpactLab) invalidateImpactSimulation();
+        });
+        slider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (configuringImpactLab || numericInput.getValueFactory() == null) return;
+            numericInput.getValueFactory().setValue(newValue.doubleValue());
+            invalidateImpactSimulation();
+        });
+        numericInput.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (configuringImpactLab || newValue == null) return;
+            slider.setValue(newValue);
+            invalidateImpactSimulation();
+        });
+        numericInput.getEditor().setOnAction(event -> commitThresholdInput(numericInput));
+        numericInput.getEditor().focusedProperty().addListener((observable, wasFocused, isFocused) -> {
+            if (wasFocused && !isFocused) commitThresholdInput(numericInput);
+        });
+        slider.setDisable(true);
+        numericInput.setDisable(true);
+        return new ThresholdEditor(row, ruleChoice, slider, numericInput);
+    }
+
+    private void commitThresholdInput(Spinner<Double> input) {
+        if (input.getValueFactory() == null) return;
+        try {
+            double value = Double.parseDouble(input.getEditor().getText().trim());
+            WhatIfSimulator.NumericRule rule = selectedNumericRule(input);
+            if (rule == null || !Double.isFinite(value)
+                    || value < rule.minimum() || value > rule.maximum()) {
+                throw new NumberFormatException("Threshold outside the allowed range.");
+            }
+            input.getValueFactory().setValue(value);
+            input.getEditor().setStyle("");
+        } catch (NumberFormatException exception) {
+            input.getEditor().setStyle("-fx-border-color: #f38ba8;");
+            input.getEditor().setText(String.valueOf(minimumThreshold(input)));
+            whatIfSummary.setText("Enter a finite threshold within the selected field's permitted range.");
+        }
+    }
+
+    private static double minimumThreshold(Spinner<Double> input) {
+        return input.getValueFactory() == null ? 0 : input.getValueFactory().getValue();
+    }
+
+    private WhatIfSimulator.NumericRule selectedNumericRule(Spinner<Double> input) {
+        return thresholdEditors.stream()
+                .filter(editor -> editor.numericInput() == input)
+                .map(editor -> editor.ruleChoice().getValue())
+                .filter(Objects::nonNull)
+                .findFirst().orElse(null);
+    }
+
+    private void configureThresholdEditor(ThresholdEditor editor, WhatIfSimulator.NumericRule rule) {
+        if (rule == null) {
+            editor.slider().setDisable(true);
+            editor.numericInput().setDisable(true);
+            editor.numericInput().setValueFactory(null);
+            editor.slider().setValue(0);
+            return;
+        }
+        editor.slider().setMin(rule.minimum());
+        editor.slider().setMax(rule.maximum());
+        editor.slider().setMajorTickUnit(Math.max(rule.step(), (rule.maximum() - rule.minimum()) / 5.0));
+        editor.slider().setMinorTickCount(4);
+        editor.slider().setBlockIncrement(rule.step());
+        editor.slider().setSnapToTicks(true);
+        editor.numericInput().setValueFactory(new javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory(
+                rule.minimum(), rule.maximum(), rule.threshold(), rule.step()));
+        editor.slider().setValue(rule.threshold());
+        editor.slider().setDisable(false);
+        editor.numericInput().setDisable(false);
     }
 
     private void configureWhatIfVersions(Policy policy) {
         whatIfVersionChoice.getItems().clear();
-        whatIfRuleChoice.getItems().clear();
-        lastSimulation = null;
-        saveWhatIfButton.setDisable(true);
-        whatIfFlips.getItems().clear();
         if (policy == null) {
             whatIfVersionChoice.setValue(null);
-            whatIfSummary.setText("Select a policy to simulate its versions.");
+            configureWhatIfRules(null);
             return;
         }
         whatIfVersionChoice.getItems().setAll(policy.getVersions());
-        PolicyVersion selected = AppContext.getInstance().selectedVersionProperty().get();
+        PolicyVersion selected = null;
+        Policy globalSelected = AppContext.getInstance().selectedPolicyProperty().get();
+        if (globalSelected != null && Objects.equals(globalSelected.getId(), policy.getId())) {
+            selected = AppContext.getInstance().selectedVersionProperty().get();
+        }
         if (selected == null || !selected.getPolicyId().equals(policy.getId())) {
             selected = policy.getVersion(policy.getActiveVersionNumber())
                     .orElseGet(() -> policy.getLatestVersion().orElse(null));
@@ -297,64 +493,199 @@ public class DashboardView implements BaseView {
         whatIfVersionChoice.setValue(selected);
     }
 
-    private void configureWhatIfRules(PolicyVersion version) {
-        List<WhatIfSimulator.NumericRule> rules = whatIfSimulator.findNumericRules(version);
-        whatIfRuleChoice.getItems().setAll(rules);
-        whatIfRuleChoice.setValue(rules.isEmpty() ? null : rules.get(0));
-        if (rules.isEmpty()) {
-            whatIfSummary.setText("This version has no numeric rules to adjust.");
-        } else {
-            whatIfSummary.setText("The simulation compares against saved results and does not write data.");
+    private void configureImpactLabPrograms(List<ProgramConfiguration> programs) {
+        String selectedId = whatIfProgramChoice.getValue() == null
+                ? null : whatIfProgramChoice.getValue().getId();
+        Policy selectedPolicy = AppContext.getInstance().selectedPolicyProperty().get();
+        if (selectedId == null && selectedPolicy != null && selectedPolicy.getProgramId() != null) {
+            selectedId = selectedPolicy.getProgramId();
         }
-        lastSimulation = null;
-        saveWhatIfButton.setDisable(true);
-        whatIfFlips.getItems().clear();
+        if (selectedId == null && AppContext.getInstance().selectedProgramProperty().get() != null) {
+            selectedId = AppContext.getInstance().selectedProgramProperty().get().getId();
+        }
+        configuringImpactLab = true;
+        List<ProgramConfiguration> activePrograms = programs.stream()
+                .filter(program -> !program.isArchived())
+                .toList();
+        whatIfProgramChoice.getItems().setAll(activePrograms);
+        String preferredId = selectedId;
+        ProgramConfiguration selected = activePrograms.stream()
+                .filter(program -> Objects.equals(program.getId(), preferredId))
+                .findFirst().orElse(null);
+        whatIfProgramChoice.setValue(selected);
+        configuringImpactLab = false;
+        configureImpactLabPolicies();
     }
 
-    private void configureWhatIfThreshold(WhatIfSimulator.NumericRule rule) {
-        if (rule == null) {
-            whatIfThreshold.setDisable(true);
-            return;
+    private void configureImpactLabPolicies() {
+        String programId = whatIfProgramChoice.getValue() == null
+                ? null : whatIfProgramChoice.getValue().getId();
+        Policy currentPolicy = whatIfPolicyChoice.getValue();
+        if (currentPolicy == null) currentPolicy = AppContext.getInstance().selectedPolicyProperty().get();
+        String preferredPolicyId = currentPolicy == null ? null : currentPolicy.getId();
+        List<Policy> candidates = AppContext.getInstance().getPolicies().stream()
+                .filter(policy -> programId == null || Objects.equals(programId, policy.getProgramId()))
+                .toList();
+        configuringImpactLab = true;
+        whatIfPolicyChoice.getItems().setAll(candidates);
+        Policy selectedPolicy = candidates.stream()
+                .filter(policy -> Objects.equals(policy.getId(), preferredPolicyId))
+                .findFirst().orElse(null);
+        whatIfPolicyChoice.setValue(selectedPolicy);
+        configuringImpactLab = false;
+        configureWhatIfVersions(selectedPolicy);
+    }
+
+    private void configureWhatIfRules(PolicyVersion version) {
+        configuringImpactLab = true;
+        ProgramConfiguration program = whatIfProgramChoice.getValue();
+        List<WhatIfSimulator.NumericRule> numericRules = whatIfSimulator.findNumericRules(version, program);
+        for (ThresholdEditor editor : thresholdEditors) {
+            editor.ruleChoice().getItems().setAll(numericRules);
+            editor.ruleChoice().setValue(null);
+            configureThresholdEditor(editor, null);
         }
-        String field = rule.fieldName().toLowerCase().replace("_", "");
-        double min = 0;
-        double max;
-        if (field.equals("gpa")) {
-            max = 10;
-        } else if (field.equals("interview") || field.equals("interviewscore")) {
-            max = 100;
-        } else {
-            min = Math.min(0, rule.threshold());
-            max = Math.max(100, rule.threshold() + Math.max(10, Math.abs(rule.threshold()) * 0.5));
+        booleanRuleEditors.clear();
+        multiSelectRuleEditors.clear();
+        whatIfFieldEditors.getChildren().clear();
+        for (WhatIfSimulator.BooleanRule rule : whatIfSimulator.findBooleanRules(version, program)) {
+            ChoiceBox<String> choice = new ChoiceBox<>(FXCollections.observableArrayList(
+                    "Use base", "True", "False"));
+            choice.setValue("Use base");
+            whatIfFieldEditors.getChildren().add(new HBox(10,
+                    new Label(rule.label()), choice));
+            booleanRuleEditors.add(new BooleanRuleEditor(rule, choice));
+            choice.valueProperty().addListener((observable, oldValue, newValue) -> {
+                if (!configuringImpactLab) invalidateImpactSimulation();
+            });
         }
-        max = Math.max(max, rule.threshold());
-        whatIfThreshold.setMin(min);
-        whatIfThreshold.setMax(max);
-        whatIfThreshold.setMajorTickUnit(field.equals("gpa") ? 1 : 10);
-        whatIfThreshold.setMinorTickCount(4);
-        whatIfThreshold.setBlockIncrement(field.equals("gpa") ? 0.1 : 1);
-        whatIfThreshold.setValue(rule.threshold());
-        whatIfThreshold.setDisable(false);
-        whatIfThresholdValue.setText(String.format("%.2f", rule.threshold()));
+        for (WhatIfSimulator.MultiSelectRule rule : whatIfSimulator.findMultiSelectRules(version, program)) {
+            if (rule.openValueSet()) {
+                TextField valuesInput = new TextField(String.join(", ", rule.expectedValues()));
+                valuesInput.setPromptText("Comma-separated values");
+                valuesInput.textProperty().addListener((observable, oldValue, newValue) -> {
+                    if (!configuringImpactLab) invalidateImpactSimulation();
+                });
+                whatIfFieldEditors.getChildren().add(new VBox(4,
+                        new Label(rule.label() + " (comma-separated values)"), valuesInput));
+                multiSelectRuleEditors.add(new MultiSelectRuleEditor(rule, null, valuesInput));
+                continue;
+            }
+            ListView<String> values = new ListView<>(FXCollections.observableArrayList(rule.options()));
+            values.getSelectionModel().setSelectionMode(
+                    rule.operator() == com.ruleweaver.model.FieldOperator.CONTAINS
+                            || rule.operator() == com.ruleweaver.model.FieldOperator.NOT_CONTAINS
+                            ? SelectionMode.SINGLE : SelectionMode.MULTIPLE);
+            values.getSelectionModel().clearSelection();
+            for (String value : rule.expectedValues()) values.getSelectionModel().select(value);
+            values.setPrefHeight(Math.min(96, Math.max(42, rule.options().size() * 24.0)));
+            VBox ruleBox = new VBox(4, new Label(rule.label()), values);
+            whatIfFieldEditors.getChildren().add(ruleBox);
+            multiSelectRuleEditors.add(new MultiSelectRuleEditor(rule, values, null));
+            values.getSelectionModel().getSelectedItems().addListener(
+                    (javafx.collections.ListChangeListener<String>) change -> {
+                        if (!configuringImpactLab) invalidateImpactSimulation();
+                    });
+        }
+        if (whatIfFieldEditors.getChildren().isEmpty()) {
+            whatIfFieldEditors.getChildren().add(new Label("This version has no editable Boolean or multi-select rules."));
+        }
+        configuringImpactLab = false;
+        invalidateImpactSimulation();
+    }
+
+    private List<WhatIfSimulator.RuleAdjustment> selectedAdjustments() {
+        List<WhatIfSimulator.RuleAdjustment> adjustments = new ArrayList<>();
+        for (ThresholdEditor editor : thresholdEditors) {
+            WhatIfSimulator.NumericRule rule = editor.ruleChoice().getValue();
+            if (rule != null) {
+                adjustments.add(new WhatIfSimulator.RuleAdjustment(
+                        rule.path(), editor.numericInput().getValue()));
+            }
+        }
+        for (BooleanRuleEditor editor : booleanRuleEditors) {
+            String selection = editor.choice().getValue();
+            if ("True".equals(selection) || "False".equals(selection)) {
+                adjustments.add(new WhatIfSimulator.RuleAdjustment(editor.rule().path(),
+                        Boolean.valueOf(selection.toLowerCase(java.util.Locale.ROOT))));
+            }
+        }
+        for (MultiSelectRuleEditor editor : multiSelectRuleEditors) {
+            List<String> selected;
+            if (editor.valuesInput() != null) {
+                selected = java.util.Arrays.stream(editor.valuesInput().getText().split(","))
+                        .map(String::trim).filter(value -> !value.isEmpty()).toList();
+            } else {
+                selected = List.copyOf(editor.values().getSelectionModel().getSelectedItems());
+            }
+            if (selected.equals(editor.rule().expectedValues())) continue;
+            boolean singleValueOperator = editor.rule().operator() == com.ruleweaver.model.FieldOperator.CONTAINS
+                    || editor.rule().operator() == com.ruleweaver.model.FieldOperator.NOT_CONTAINS;
+            if (singleValueOperator && selected.size() > 1) {
+                throw new IllegalArgumentException("Enter one value for " + editor.rule().label() + ".");
+            }
+            Object value = singleValueOperator ? selected.stream().findFirst().orElse(null) : selected;
+            if (value == null || value instanceof List<?> values && values.isEmpty()) {
+                throw new IllegalArgumentException("Select at least one value for " + editor.rule().label() + ".");
+            }
+            adjustments.add(new WhatIfSimulator.RuleAdjustment(editor.rule().path(), value));
+        }
+        return List.copyOf(adjustments);
+    }
+
+    private void invalidateImpactSimulation() {
+        if (configuringImpactLab) return;
+        whatIfGeneration++;
+        if (activeWhatIfTask != null && !activeWhatIfTask.isDone()) activeWhatIfTask.cancel(true);
+        activeWhatIfTask = null;
+        lastSimulation = null;
+        saveWhatIfButton.setDisable(true);
+        cancelWhatIfButton.setDisable(true);
+        runWhatIfButton.setDisable(whatIfVersionChoice.getValue() == null);
+        whatIfProgressBar.progressProperty().unbind();
+        whatIfProgressBar.setProgress(0);
+        whatIfProgressBar.setVisible(false);
+        whatIfProgressBar.setManaged(false);
+        whatIfFlips.getItems().clear();
+        stopShimmer(whatIfResultsSlot);
+        whatIfResultsSlot.getChildren().setAll(whatIfFlips);
+        whatIfDelta.setText("No simulation");
+        whatIfSummary.setText(whatIfVersionChoice.getValue() == null
+                ? "Select a program, policy, and base version to begin."
+                : "Inputs changed. Run the simulation to compare against the selected base version.");
     }
 
     private void runWhatIfSimulation() {
         AppContext ctx = AppContext.getInstance();
-        Policy policy = ctx.selectedPolicyProperty().get();
+        Policy policy = whatIfPolicyChoice.getValue();
+        ProgramConfiguration program = whatIfProgramChoice.getValue();
         PolicyVersion version = whatIfVersionChoice.getValue();
-        WhatIfSimulator.NumericRule rule = whatIfRuleChoice.getValue();
-        if (policy == null || version == null || rule == null) {
+        if (policy == null || version == null
+                || !Objects.equals(version.getPolicyId(), policy.getId())
+                || program != null && !Objects.equals(program.getId(), policy.getProgramId())) {
             ctx.showToast(Toast.error("What-if Simulation Unavailable",
-                    "Select a policy version and numeric rule first.", null));
+                    "Select a matching program, policy, and base version first.", null));
             return;
         }
 
         List<Applicant> cachedApplicants = new ArrayList<>(ctx.getApplicants());
-        double threshold = whatIfThreshold.getValue();
+        List<WhatIfSimulator.RuleAdjustment> adjustments;
+        try {
+            adjustments = selectedAdjustments();
+        } catch (IllegalArgumentException exception) {
+            ctx.showToast(Toast.error("Impact Lab Input Invalid", exception.getMessage(), null));
+            return;
+        }
+        long generation = ++whatIfGeneration;
+        if (activeWhatIfTask != null && !activeWhatIfTask.isDone()) activeWhatIfTask.cancel(true);
         runWhatIfButton.setDisable(true);
+        cancelWhatIfButton.setDisable(false);
         saveWhatIfButton.setDisable(true);
-        whatIfSummary.setText("Running what-if simulation...");
+        whatIfSummary.setText("Recalculating baseline and simulated decisions with the shared decision engine...");
         showSkeleton(whatIfResultsSlot, 2);
+        whatIfProgressBar.setManaged(true);
+        whatIfProgressBar.setVisible(true);
+        whatIfProgressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
 
         Task<WhatIfSimulator.SimulationResult> task = new Task<>() {
             @Override
@@ -364,48 +695,82 @@ public class DashboardView implements BaseView {
                         : ctx.getApplicantRepository().findAll().stream()
                                 .map(ApplicantDocumentMapper::toApplicant)
                                 .toList();
-                List<EvaluationResult> storedResults = ctx.getEvaluationResultRepository()
-                        .findByPolicyAndVersion(policy.getId(), version.getVersionNumber());
-                return whatIfSimulator.simulate(version, rule, threshold, applicants, storedResults);
+                int total = applicants.size();
+                updateProgress(0, Math.max(1, total));
+                return whatIfSimulator.simulate(version, adjustments, program, applicants,
+                        completed -> updateProgress(completed, Math.max(1, total)), this::isCancelled);
             }
         };
+        activeWhatIfTask = task;
+        whatIfProgressBar.progressProperty().bind(task.progressProperty());
         task.setOnSucceeded(event -> {
+            if (generation != whatIfGeneration) return;
+            activeWhatIfTask = null;
             WhatIfSimulator.SimulationResult result = task.getValue();
             lastSimulation = result;
-            whatIfSummary.setText(String.format(
-                    "Simulated passes: %d / %d | Real passes: %d | Delta: %+d",
-                    result.passCount(), result.comparedCount(),
-                    result.baselinePassCount(), result.delta()));
-            whatIfDelta.setText(String.format("Pass change: %+d", result.delta()));
+            int baselineRejected = result.comparedCount() - result.baselinePassCount();
+            int simulatedRejected = result.comparedCount() - result.passCount();
+            double baselineRate = result.comparedCount() == 0 ? 0
+                    : result.baselinePassCount() * 100.0 / result.comparedCount();
+            double simulatedRate = result.comparedCount() == 0 ? 0
+                    : result.passCount() * 100.0 / result.comparedCount();
+            double rateChange = simulatedRate - baselineRate;
+            whatIfSummary.setText(result.comparedCount() == 0
+                    ? "No applicants are available for this simulation."
+                    : String.format("Cohort: %d applicants | Eligible: %d → %d (%+d) | Rejected: %d → %d (%+d)",
+                            result.comparedCount(), result.baselinePassCount(), result.passCount(), result.delta(),
+                            baselineRejected, simulatedRejected, simulatedRejected - baselineRejected));
+            whatIfDelta.setText(result.comparedCount() == 0
+                    ? "Pass rate: N/A"
+                    : String.format("Pass rate: %.1f%% → %.1f%% (%+.1f percentage points)",
+                            baselineRate, simulatedRate, rateChange));
             whatIfDelta.getStyleClass().removeAll("flip-chip-gain", "flip-chip-loss");
-            whatIfDelta.getStyleClass().add(result.delta() < 0 ? "flip-chip-loss" : "flip-chip-gain");
+            whatIfDelta.getStyleClass().add(rateChange < 0 ? "flip-chip-loss" : "flip-chip-gain");
             whatIfFlips.getItems().setAll(result.flips());
             stopShimmer(whatIfResultsSlot);
             whatIfResultsSlot.getChildren().setAll(whatIfFlips);
-            saveWhatIfButton.setDisable(false);
+            saveWhatIfButton.setDisable(result.comparedCount() == 0);
             runWhatIfButton.setDisable(false);
-            ctx.showToast(Toast.success("What-if Complete",
-                    "Compared " + result.comparedCount() + " applicants; no results were saved.", null));
+            cancelWhatIfButton.setDisable(true);
+            whatIfProgressBar.progressProperty().unbind();
+            whatIfProgressBar.setVisible(false);
+            whatIfProgressBar.setManaged(false);
+            ctx.showToast(Toast.success("Impact Simulation Complete",
+                    "Compared " + result.comparedCount() + " applicants; no simulation data was saved.", null));
         });
         task.setOnFailed(event -> {
+            if (generation != whatIfGeneration) return;
+            activeWhatIfTask = null;
             runWhatIfButton.setDisable(false);
+            cancelWhatIfButton.setDisable(true);
             Throwable failure = task.getException();
             if (failure != null) {
                 AppContext.logFailure("What-if simulation failed", failure);
+                String message = failure.getMessage() == null || failure.getMessage().isBlank()
+                        ? "The simulation could not be completed."
+                        : MongoConfig.sanitize(failure.getMessage());
+                whatIfProgressBar.progressProperty().unbind();
+                whatIfProgressBar.setVisible(false);
+                whatIfProgressBar.setManaged(false);
                 stopShimmer(whatIfResultsSlot);
                 whatIfResultsSlot.getChildren().setAll(createErrorState(
-                        "Simulation failed", "Could not complete the simulation.",
+                        "Simulation failed", message,
                         "Retry", this::runWhatIfSimulation));
                 ctx.showToast(Toast.errorWithAction(
                         "What-if Simulation Failed",
-                        failure.getMessage() == null ? "The simulation could not be completed."
-                                : MongoConfig.sanitize(failure.getMessage()),
+                        message,
                         "Retry", this::runWhatIfSimulation));
             }
         });
         task.setOnCancelled(event -> {
+            if (activeWhatIfTask == task) activeWhatIfTask = null;
+            if (generation != whatIfGeneration) return;
             runWhatIfButton.setDisable(false);
-            whatIfSummary.setText("What-if simulation cancelled.");
+            cancelWhatIfButton.setDisable(true);
+            whatIfProgressBar.progressProperty().unbind();
+            whatIfProgressBar.setVisible(false);
+            whatIfProgressBar.setManaged(false);
+            whatIfSummary.setText("Impact Lab simulation cancelled.");
             stopShimmer(whatIfResultsSlot);
             whatIfResultsSlot.getChildren().setAll(whatIfFlips);
         });
@@ -427,7 +792,7 @@ public class DashboardView implements BaseView {
         titleBox.getChildren().addAll(title, subtitle);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
 
-        policyChoice.setPromptText("Select policy");
+        policyChoice.setPromptText("All policies");
         policyChoice.setPrefWidth(190);
         policyChoice.setCellFactory(list -> new ListCell<>() {
             @Override
@@ -440,12 +805,11 @@ public class DashboardView implements BaseView {
             @Override
             protected void updateItem(Policy policy, boolean empty) {
                 super.updateItem(policy, empty);
-                setText(empty || policy == null ? "Select policy" : policy.getName());
+                setText(empty || policy == null ? "All policies" : policy.getName());
             }
         });
         policyChoice.getItems().setAll(AppContext.getInstance().getPolicies());
         selectedPolicyChip.getStyleClass().addAll("policy-chip", "policy-chip-text");
-        versionChip.getStyleClass().add("version-chip");
         lastUpdatedLabel.getStyleClass().add("last-updated");
         refreshButton.getStyleClass().add("btn-icon");
         refreshButton.setGraphic(Icons.create(Icons.REFRESH, 0.8, "#9aa0c3"));
@@ -455,7 +819,7 @@ public class DashboardView implements BaseView {
         cancelEvaluationButton.setVisible(false);
         cancelEvaluationButton.setManaged(false);
 
-        FlowPane toolbar = new FlowPane(8, 8, policyChoice, selectedPolicyChip, versionChip,
+        FlowPane toolbar = new FlowPane(8, 8, policyChoice, selectedPolicyChip,
                 lastUpdatedLabel, refreshButton, evaluateAllButton, cancelEvaluationButton);
         toolbar.getStyleClass().add("dash-toolbar-controls");
         toolbar.setAlignment(Pos.CENTER_RIGHT);
@@ -467,16 +831,144 @@ public class DashboardView implements BaseView {
         return header;
     }
 
+    private FlowPane createFiltersRow() {
+        configureProgramFilter();
+        configureVersionFilter();
+        configureRunFilter();
+        configureDecisionFilter();
+        programFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (!syncingFilters) refreshDashboard();
+        });
+        versionFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (syncingFilters) return;
+            AppContext.getInstance().selectedVersionProperty().set(newValue);
+            refreshDashboard();
+        });
+        runFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (!syncingFilters) refreshDashboard();
+        });
+        decisionFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (!syncingFilters) refreshDashboard();
+        });
+
+        FlowPane row = new FlowPane(12, 8);
+        row.getStyleClass().add("card");
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addAll(
+                filterControl("Program", programFilter),
+                filterControl("Policy version", versionFilter),
+                filterControl("Evaluation run", runFilter),
+                filterControl("Decision", decisionFilter));
+        return row;
+    }
+
+    private void configureProgramFilter() {
+        programFilter.setPromptText("All programs");
+        programFilter.setPrefWidth(190);
+        programFilter.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(ProgramConfiguration item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        programFilter.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(ProgramConfiguration item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "All programs" : item.getName());
+            }
+        });
+    }
+
+    private void configureVersionFilter() {
+        versionFilter.setPromptText("All versions");
+        versionFilter.setPrefWidth(150);
+        versionFilter.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(PolicyVersion item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : "Version " + item.getVersionNumber());
+            }
+        });
+        versionFilter.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(PolicyVersion item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "All versions"
+                        : "Version " + item.getVersionNumber());
+            }
+        });
+    }
+
+    private void configureRunFilter() {
+        runFilter.setPromptText("All runs");
+        runFilter.setPrefWidth(250);
+        runFilter.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(DashboardAnalytics.RunOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : runOptionLabel(item));
+            }
+        });
+        runFilter.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(DashboardAnalytics.RunOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "All runs" : runOptionLabel(item));
+            }
+        });
+    }
+
+    private void configureDecisionFilter() {
+        decisionFilter.getItems().setAll(DashboardAnalytics.DecisionFilter.values());
+        decisionFilter.setValue(DashboardAnalytics.DecisionFilter.ALL);
+        decisionFilter.setPrefWidth(150);
+        decisionFilter.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(DashboardAnalytics.DecisionFilter item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : decisionLabel(item));
+            }
+        });
+        decisionFilter.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(DashboardAnalytics.DecisionFilter item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "All decisions" : decisionLabel(item));
+            }
+        });
+    }
+
+    private VBox filterControl(String label, ComboBox<?> control) {
+        VBox box = new VBox(5, new Label(label), control);
+        box.getStyleClass().add("dashboard-filter");
+        control.setMaxWidth(Double.MAX_VALUE);
+        return box;
+    }
+
+    private static String decisionLabel(DashboardAnalytics.DecisionFilter decision) {
+        return switch (decision) {
+            case ALL -> "All decisions";
+            case ELIGIBLE -> "Eligible";
+            case REJECTED -> "Rejected";
+        };
+    }
+
+    private static String runOptionLabel(DashboardAnalytics.RunOption run) {
+        if (run.isLegacy()) return "Legacy / untracked (" + run.applicantCount() + ")";
+        String time = run.latestEvaluation() == null ? "Unknown time"
+                : DateTimeFormatter.ofPattern("MMM d, h:mm a").format(run.latestEvaluation());
+        String identifier = run.id().length() > 8 ? run.id().substring(0, 8) : run.id();
+        return identifier + " · " + time + " · " + run.applicantCount() + " applicants";
+    }
+
     private void createKpiRow() {
-        totalCard = new KpiCard("TOTAL APPLICANTS", "0", "Registered candidates", Icons.APPLICANTS, "#89b4fa");
-        eligibleCard = new KpiCard("ELIGIBLE", "0", "Criteria satisfied", Icons.CHECK, "#a6e3a1");
-        rejectedCard = new KpiCard("REJECTED", "0", "One or more criteria failed", Icons.CLOSE, "#f38ba8");
-        passRateCard = new KpiCard("PASS RATE", "0.0%", "Eligible / evaluated", Icons.SPARKLES, "#cba6f7");
-        impactCard = new KpiCard("VERSION IMPACT", "0", "Changed decisions", Icons.COMPARISON, "#f9e2af");
+        totalCard = new KpiCard("EVALUATED APPLICANTS", "0", "Unique per policy", Icons.APPLICANTS, "#89b4fa");
+        eligibleCard = new KpiCard("ELIGIBLE", "0", "0 / 0 evaluated", Icons.CHECK, "#a6e3a1");
+        rejectedCard = new KpiCard("REJECTED", "0", "0 / 0 evaluated", Icons.CLOSE, "#f38ba8");
+        nearMissCard = new KpiCard("NEAR-MISSES", "0", "One recorded rule failure", Icons.SPARKLES, "#f9e2af");
+        passRateCard = new KpiCard("PASS RATE", "N/A", "Eligible / evaluated", Icons.SPARKLES, "#cba6f7");
+        impactCard = new KpiCard("BASELINE CHANGE", "N/A", "Prior saved version", Icons.COMPARISON, "#f9e2af");
         kpiGrid = new GridPane();
         kpiGrid.setHgap(16);
         kpiGrid.setVgap(16);
-        kpiContent = new VBox(12, kpiGrid);
+        sampleSummaryLabel.getStyleClass().add("page-subtitle");
+        baselineSummaryLabel.getStyleClass().add("page-subtitle");
+        baselineSummaryLabel.setWrapText(true);
+        kpiContent = new VBox(12, kpiGrid, sampleSummaryLabel, baselineSummaryLabel);
         kpiSlot.getStyleClass().add("widget-slot");
         kpiSlot.getChildren().setAll(kpiContent);
         layoutKpiCards(0);
@@ -484,12 +976,13 @@ public class DashboardView implements BaseView {
 
     private void layoutKpiCards(double width) {
         double screenWidth = width + SIDEBAR_WIDTH;
-        int columns = screenWidth >= 1300 ? 5 : 3;
+        int columns = screenWidth >= 1500 ? 6 : 3;
         if (screenWidth < 900) {
             columns = 2;
         }
         kpiGrid.getChildren().clear();
-        List<KpiCard> cards = List.of(totalCard, eligibleCard, rejectedCard, passRateCard, impactCard);
+        List<KpiCard> cards = List.of(totalCard, eligibleCard, rejectedCard,
+                nearMissCard, passRateCard, impactCard);
         for (int i = 0; i < cards.size(); i++) {
             int row = i / columns;
             int column = i % columns;
@@ -535,8 +1028,10 @@ public class DashboardView implements BaseView {
 
         barWidget = new VBox(12);
         barWidget.getStyleClass().add("card");
-        Label barTitle = new Label("CRITERIA COMPLIANCE");
+        Label barTitle = new Label("RULE-LEVEL OUTCOMES");
         barTitle.getStyleClass().add("caption-label");
+        ruleSampleSummaryLabel.getStyleClass().add("page-subtitle");
+        ruleSampleSummaryLabel.setWrapText(true);
         barXAxis = new NumberAxis();
         barXAxis.setLabel("Applicants");
         barYAxis = new CategoryAxis();
@@ -549,7 +1044,7 @@ public class DashboardView implements BaseView {
         barCard.getStyleClass().add("widget-slot");
         barCard.setMinHeight(280);
         barCard.getChildren().setAll(barChart);
-        barWidget.getChildren().addAll(barTitle, barCard);
+        barWidget.getChildren().addAll(barTitle, ruleSampleSummaryLabel, barCard);
         VBox.setVgrow(barCard, Priority.ALWAYS);
     }
 
@@ -611,7 +1106,7 @@ public class DashboardView implements BaseView {
     private VBox createNeedsAttentionCard() {
         attentionWidget = new VBox(12);
         attentionWidget.getStyleClass().add("card");
-        Label title = new Label("NEEDS ATTENTION");
+        Label title = new Label("DECISION FUNNEL & REJECTION REASONS");
         title.getStyleClass().add("caption-label");
         needsAttentionList.setFillWidth(true);
         needsAttentionSlot.getStyleClass().add("widget-slot");
@@ -621,7 +1116,7 @@ public class DashboardView implements BaseView {
         return attentionWidget;
     }
 
-    private void layoutDashboard(HBox header, VBox recentCard, VBox attentionCard,
+    private void layoutDashboard(HBox header, FlowPane filters, VBox recentCard, VBox attentionCard,
                                  VBox whatIfCard, double width) {
         double screenWidth = width + SIDEBAR_WIDTH;
         int columns = screenWidth >= 1300 ? 3 : 2;
@@ -641,24 +1136,25 @@ public class DashboardView implements BaseView {
             contentGrid.getColumnConstraints().add(constraint);
         }
         contentGrid.add(header, 0, 0, columns, 1);
-        contentGrid.add(kpiSlot, 0, 1, columns, 1);
+        contentGrid.add(filters, 0, 1, columns, 1);
+        contentGrid.add(kpiSlot, 0, 2, columns, 1);
         if (columns == 3) {
-            contentGrid.add(pieWidget, 0, 2);
-            contentGrid.add(barWidget, 1, 2, 2, 1);
-            contentGrid.add(recentCard, 0, 3, 2, 1);
-            contentGrid.add(attentionCard, 2, 3);
+            contentGrid.add(pieWidget, 0, 3);
+            contentGrid.add(barWidget, 1, 3, 2, 1);
+            contentGrid.add(recentCard, 0, 4, 2, 1);
+            contentGrid.add(attentionCard, 2, 4);
         } else if (columns == 2) {
-            contentGrid.add(pieWidget, 0, 2);
-            contentGrid.add(barWidget, 1, 2);
-            contentGrid.add(recentCard, 0, 3);
-            contentGrid.add(attentionCard, 1, 3);
-        } else {
-            contentGrid.add(pieWidget, 0, 2);
-            contentGrid.add(barWidget, 0, 3);
+            contentGrid.add(pieWidget, 0, 3);
+            contentGrid.add(barWidget, 1, 3);
             contentGrid.add(recentCard, 0, 4);
-            contentGrid.add(attentionCard, 0, 5);
+            contentGrid.add(attentionCard, 1, 4);
+        } else {
+            contentGrid.add(pieWidget, 0, 3);
+            contentGrid.add(barWidget, 0, 4);
+            contentGrid.add(recentCard, 0, 5);
+            contentGrid.add(attentionCard, 0, 6);
         }
-        contentGrid.add(whatIfCard, 0, columns == 1 ? 6 : 4, columns, 1);
+        contentGrid.add(whatIfCard, 0, columns == 1 ? 7 : 5, columns, 1);
         for (Node node : contentGrid.getChildren()) {
             if (node instanceof Region region) {
                 region.setMinWidth(0);
@@ -675,186 +1171,220 @@ public class DashboardView implements BaseView {
         policyChoice.getItems().setAll(AppContext.getInstance().getPolicies());
         policyChoice.setValue(policy);
         syncingPolicyChoice = false;
-        selectedPolicyChip.setText(policy == null ? "No policy selected" : policy.getName());
+        selectedPolicyChip.setText(policy == null ? "All policies" : policy.getName());
         selectedPolicyChip.getStyleClass().remove("policy-chip-muted");
         if (policy == null) selectedPolicyChip.getStyleClass().add("policy-chip-muted");
+        syncVersionChoices(policy, AppContext.getInstance().selectedVersionProperty().get());
     }
 
-    private void updateVersionChip(PolicyVersion version) {
-        versionChip.setText(version == null ? "No version" : "v" + version.getVersionNumber());
+    private void syncVersionChoices(Policy policy, PolicyVersion selected) {
+        syncingFilters = true;
+        versionFilter.getItems().setAll(policy == null ? List.of() : policy.getVersions());
+        PolicyVersion matching = selected == null ? null : versionFilter.getItems().stream()
+                .filter(candidate -> candidate.getVersionNumber() == selected.getVersionNumber())
+                .findFirst().orElse(null);
+        versionFilter.setValue(matching);
+        syncingFilters = false;
+        evaluateAllButton.setDisable(policy == null || selected == null);
+    }
+
+    private void syncVersionFilter(PolicyVersion selected) {
+        if (versionFilter.getItems().isEmpty()) return;
+        syncingFilters = true;
+        PolicyVersion matching = selected == null ? null : versionFilter.getItems().stream()
+                .filter(candidate -> candidate.getVersionNumber() == selected.getVersionNumber())
+                .findFirst().orElse(null);
+        versionFilter.setValue(matching);
+        syncingFilters = false;
+        evaluateAllButton.setDisable(AppContext.getInstance().selectedPolicyProperty().get() == null
+                || selected == null);
     }
 
     public void refreshDashboard() {
         AppContext ctx = AppContext.getInstance();
-        Policy policy = ctx.selectedPolicyProperty().get();
-        PolicyVersion version = ctx.selectedVersionProperty().get();
         long generation = ++refreshGeneration;
-        List<Applicant> cachedApplicants = new ArrayList<>(ctx.getApplicants());
-        showSkeleton(kpiSlot, 5);
+        Task<DashboardSnapshot> previousTask = activeDashboardTask;
+        if (previousTask != null && !previousTask.isDone()) previousTask.cancel(true);
+        DashboardAnalytics.Filters filters = selectedFilters();
+        List<Policy> policies = List.copyOf(ctx.getPolicies());
+        showSkeleton(kpiSlot, 6);
         showSkeleton(chartCard, 1);
         showSkeleton(barCard, 1);
         showSkeleton(recentEvaluationsSlot, 3);
         showSkeleton(needsAttentionSlot, 3);
 
-        Task<DashboardData> kpiTask = new Task<>() {
+        Task<DashboardSnapshot> task = new Task<>() {
             @Override
-            protected DashboardData call() {
-                List<Applicant> applicants = ctx.getApplicantRepository() == null ? cachedApplicants
-                        : ctx.getApplicantRepository().findAll().stream()
-                                .map(ApplicantDocumentMapper::toApplicant).toList();
-                List<EvaluationResult> results = loadResults(ctx, policy, version);
-                List<EvaluationResult> previous = version != null && version.getVersionNumber() > 1
-                        ? loadResults(ctx, policy, version.getVersionNumber() - 1) : List.of();
-                return new DashboardData(applicants, results, previous);
+            protected DashboardSnapshot call() {
+                List<EvaluationResult> results = ctx.getEvaluationResultRepository() == null
+                        ? List.copyOf(ctx.getEvaluationResults())
+                        : ctx.getEvaluationResultRepository().findAll();
+                List<ProgramConfiguration> programs = ctx.getProgramService().listPrograms();
+                DashboardAnalytics.Analysis analysis = dashboardAnalytics.analyze(results, policies, filters);
+                DashboardAnalytics.Filters runScope = new DashboardAnalytics.Filters(
+                        filters.programId(), filters.policyId(), filters.versionNumber(), null,
+                        DashboardAnalytics.DecisionFilter.ALL);
+                List<DashboardAnalytics.RunOption> runs =
+                        dashboardAnalytics.findRuns(results, policies, runScope);
+                return new DashboardSnapshot(programs, runs, analysis);
             }
         };
-        loadWidget(kpiSlot, generation, kpiTask, data -> renderKpis(data, policy, version),
-                "Dashboard KPI load failed", 5, this::refreshDashboard);
-
-        Task<List<EvaluationResult>> chartTask = resultsTask(ctx, policy, version);
-        loadWidget(chartCard, generation, chartTask, this::renderPieChart,
-                "Dashboard outcome chart load failed", 1, this::refreshDashboard);
-
-        Task<List<EvaluationResult>> complianceTask = resultsTask(ctx, policy, version);
-        loadWidget(barCard, generation, complianceTask, this::renderComplianceChart,
-                "Dashboard criteria chart load failed", 1, this::refreshDashboard);
-
-        Task<List<EvaluationResult>> recentTask = resultsTask(ctx, policy, version);
-        loadWidget(recentEvaluationsSlot, generation, recentTask, this::renderRecentEvaluations,
-                "Dashboard recent evaluations load failed", 3, this::refreshDashboard);
-
-        Task<List<EvaluationResult>> attentionTask = resultsTask(ctx, policy, version);
-        loadWidget(needsAttentionSlot, generation, attentionTask, this::renderNeedsAttention,
-                "Dashboard needs-attention load failed", 3, this::refreshDashboard);
-    }
-
-    private Task<List<EvaluationResult>> resultsTask(AppContext ctx, Policy policy, PolicyVersion version) {
-        return new Task<>() {
-            @Override
-            protected List<EvaluationResult> call() {
-                return loadResults(ctx, policy, version);
-            }
-        };
-    }
-
-    private List<EvaluationResult> loadResults(AppContext ctx, Policy policy, PolicyVersion version) {
-        return version == null || policy == null || ctx.getEvaluationResultRepository() == null
-                ? List.of()
-                : ctx.getEvaluationResultRepository().findByPolicyAndVersion(
-                        policy.getId(), version.getVersionNumber());
-    }
-
-    private List<EvaluationResult> loadResults(AppContext ctx, Policy policy, int versionNumber) {
-        return policy == null || ctx.getEvaluationResultRepository() == null
-                ? List.of()
-                : ctx.getEvaluationResultRepository().findByPolicyAndVersion(policy.getId(), versionNumber);
-    }
-
-    private <T> void loadWidget(StackPane slot, long generation, Task<T> task,
-                                java.util.function.Consumer<T> success, String failureContext,
-                                int skeletonCount, Runnable retry) {
+        activeDashboardTask = task;
         task.setOnSucceeded(event -> {
             if (generation != refreshGeneration) return;
-            stopShimmer(slot);
-            success.accept(task.getValue());
+            if (activeDashboardTask == task) activeDashboardTask = null;
+            DashboardSnapshot snapshot = task.getValue();
+            if (updateDashboardFilters(snapshot)) return;
+            DashboardAnalytics.Analysis analysis = snapshot.analysis();
+            renderKpis(analysis, filters);
+            renderPieChart(analysis.evaluations());
+            renderComplianceChart(analysis);
+            renderRecentEvaluations(analysis.evaluations());
+            renderNeedsAttention(analysis);
+            stopDashboardShimmers();
             lastUpdatedLabel.setText("Updated " + updatedFormatter.format(LocalDateTime.now()));
         });
         task.setOnCancelled(event -> {
-            if (generation == refreshGeneration) stopShimmer(slot);
+            if (activeDashboardTask == task) activeDashboardTask = null;
+            if (generation == refreshGeneration) stopDashboardShimmers();
         });
         task.setOnFailed(event -> {
             if (generation != refreshGeneration) return;
-            stopShimmer(slot);
+            if (activeDashboardTask == task) activeDashboardTask = null;
             Throwable failure = task.getException();
             if (failure != null) {
-                AppContext.logFailure(failureContext, failure);
+                AppContext.logFailure("Dashboard analytics load failed", failure);
                 String message = failure.getMessage() == null || failure.getMessage().isBlank()
                         ? "Dashboard data could not be loaded."
                         : MongoConfig.sanitize(failure.getMessage());
-                slot.getChildren().setAll(createErrorState("Unable to load this widget", message,
-                        "Retry", retry));
+                stopDashboardShimmers();
+                for (StackPane slot : List.of(kpiSlot, chartCard, barCard,
+                        recentEvaluationsSlot, needsAttentionSlot)) {
+                    slot.getChildren().setAll(createErrorState(
+                            "Unable to load dashboard insights", message, "Retry", this::refreshDashboard));
+                }
                 AppContext.getInstance().showToast(
-                        Toast.errorWithAction("Dashboard Data Failed", message, "Retry", retry));
+                        Toast.errorWithAction("Dashboard Data Failed", message, "Retry", this::refreshDashboard));
             }
         });
-        AppContext.getInstance().getExecutor().execute(task);
+        ctx.getExecutor().execute(task);
     }
 
-    private void renderKpis(DashboardData data, Policy policy, PolicyVersion version) {
+    private DashboardAnalytics.Filters selectedFilters() {
+        ProgramConfiguration program = programFilter.getValue();
+        Policy policy = policyChoice.getValue();
+        PolicyVersion version = versionFilter.getValue();
+        DashboardAnalytics.RunOption run = runFilter.getValue();
+        return new DashboardAnalytics.Filters(
+                program == null ? null : program.getId(),
+                policy == null ? null : policy.getId(),
+                version == null ? null : version.getVersionNumber(),
+                run == null ? null : run.id(),
+                decisionFilter.getValue());
+    }
+
+    private boolean updateDashboardFilters(DashboardSnapshot snapshot) {
+        configureImpactLabPrograms(snapshot.programs());
+        syncingFilters = true;
+        String selectedProgramId = programFilter.getValue() == null ? null : programFilter.getValue().getId();
+        programFilter.getItems().setAll(snapshot.programs());
+        ProgramConfiguration selectedProgram = snapshot.programs().stream()
+                .filter(program -> Objects.equals(program.getId(), selectedProgramId))
+                .findFirst().orElse(null);
+        programFilter.setValue(selectedProgram);
+
+        String selectedRunId = runFilter.getValue() == null ? null : runFilter.getValue().id();
+        runFilter.getItems().setAll(snapshot.runs());
+        DashboardAnalytics.RunOption selectedRun = snapshot.runs().stream()
+                .filter(run -> Objects.equals(run.id(), selectedRunId)).findFirst().orElse(null);
+        runFilter.setValue(selectedRun);
+        boolean lostRunSelection = selectedRunId != null && selectedRun == null;
+        syncingFilters = false;
+        boolean lostProgramSelection = selectedProgramId != null && selectedProgram == null;
+        if (lostRunSelection || lostProgramSelection) {
+            refreshDashboard();
+            return true;
+        }
+        return false;
+    }
+
+    private void stopDashboardShimmers() {
+        for (StackPane slot : List.of(kpiSlot, chartCard, barCard,
+                recentEvaluationsSlot, needsAttentionSlot)) {
+            stopShimmer(slot);
+        }
+    }
+
+    private void renderKpis(DashboardAnalytics.Analysis analysis, DashboardAnalytics.Filters filters) {
         kpiSlot.getChildren().setAll(kpiContent);
-        List<EvaluationResult> results = data.results();
-        int eligible = (int) results.stream().filter(EvaluationResult::isOverallDecision).count();
-        int rejected = results.size() - eligible;
-        totalCard.setValue(data.applicants().size());
-        totalCard.setDeltaText("Current");
+        DashboardAnalytics.Funnel funnel = analysis.funnel();
+        int evaluated = funnel.evaluated();
+        int eligible = funnel.eligible();
+        int rejected = funnel.rejected();
+        totalCard.setValue(evaluated);
+        totalCard.setSubtext("Unique applicants with evaluations");
         totalCard.setDeltaStyle("delta-flat");
         eligibleCard.setValue(eligible);
         rejectedCard.setValue(rejected);
-        if (results.isEmpty()) {
+        eligibleCard.setSubtext(eligible + " / " + evaluated + " evaluated");
+        rejectedCard.setSubtext(rejected + " / " + evaluated + " evaluated");
+        nearMissCard.setValue(funnel.nearMisses());
+        nearMissCard.setSubtext(funnel.nearMisses() + " / " + funnel.rejectedWithRuleDetails()
+                + " rejected with rule details");
+        if (evaluated == 0) {
             passRateCard.setValueText("N/A");
-            impactCard.setValueText("0");
-            eligibleCard.setDeltaText("No results");
-            rejectedCard.setDeltaText("No results");
-            passRateCard.setDeltaText("No results");
-            impactCard.setDeltaText("No results");
-            eligibleCard.setDeltaStyle("delta-flat");
-            rejectedCard.setDeltaStyle("delta-flat");
-            passRateCard.setDeltaStyle("delta-flat");
-            impactCard.setDeltaStyle("delta-flat");
-            kpiContent.getChildren().setAll(kpiGrid, new EmptyState(
+            impactCard.setValueText("N/A");
+            baselineSummaryLabel.setText("Baseline unavailable for an empty selected sample.");
+            kpiContent.getChildren().setAll(kpiGrid, sampleSummaryLabel, baselineSummaryLabel, new EmptyState(
                     Icons.EVALUATION, "No evaluations yet",
-                    "Evaluate applicants to populate policy-specific dashboard metrics.",
-                    "Evaluate All", this::evaluateAll));
+                    "Change the filters or evaluate applicants to populate these metrics.",
+                    null, null));
         } else {
-            kpiContent.getChildren().setAll(kpiGrid);
-            passRateCard.setValuePercent(eligible * 100.0 / results.size());
-            if (policy != null && version != null && version.getVersionNumber() > 1) {
-                ComparisonReport report = AppContext.getInstance().getComparisonService()
-                        .compareEvaluations(data.previousResults(), results);
-                int changed = report.getChangedApplicants().size();
-                impactCard.setValue(changed);
-                impactCard.setSubtext("vs v" + (version.getVersionNumber() - 1));
-                if (data.previousResults().isEmpty()) {
-                    eligibleCard.setDeltaText("No prior data");
-                    rejectedCard.setDeltaText("No prior data");
-                    passRateCard.setDeltaText("No prior data");
-                    eligibleCard.setDeltaStyle("delta-flat");
-                    rejectedCard.setDeltaStyle("delta-flat");
-                    passRateCard.setDeltaStyle("delta-flat");
-                } else {
-                    eligibleCard.setDeltaText(String.format("%+d vs prev",
-                            report.getGainedEligibilityCount() - report.getLostEligibilityCount()));
-                    rejectedCard.setDeltaText(String.format("%+d vs prev",
-                            report.getLostEligibilityCount() - report.getGainedEligibilityCount()));
-                    double previousRate = data.previousResults().stream()
-                            .filter(EvaluationResult::isOverallDecision).count()
-                            * 100.0 / data.previousResults().size();
-                    double change = eligible * 100.0 / results.size() - previousRate;
-                    passRateCard.setDeltaText(String.format("%+.1f pp", change));
-                    eligibleCard.setDeltaStyle(change >= 0 ? "delta-up" : "delta-down");
-                    rejectedCard.setDeltaStyle(change <= 0 ? "delta-up" : "delta-down");
-                    passRateCard.setDeltaStyle(change >= 0 ? "delta-up" : "delta-down");
-                }
-                impactCard.setDeltaText(String.format("%d lost · %d gained",
-                        report.getLostEligibilityCount(), report.getGainedEligibilityCount()));
-                impactCard.setDeltaStyle(report.getLostEligibilityCount() > report.getGainedEligibilityCount()
-                        ? "delta-down" : report.getGainedEligibilityCount() > report.getLostEligibilityCount()
-                                ? "delta-up" : "delta-flat");
-            } else {
-                eligibleCard.setDeltaText("Baseline");
-                rejectedCard.setDeltaText("Baseline");
-                passRateCard.setDeltaText("Baseline");
-                eligibleCard.setDeltaStyle("delta-flat");
-                rejectedCard.setDeltaStyle("delta-flat");
-                passRateCard.setDeltaStyle("delta-flat");
-                impactCard.setValueText("Baseline");
-                impactCard.setSubtext("Version 1 initial baseline");
-                impactCard.setDeltaText("Initial");
+            kpiContent.getChildren().setAll(kpiGrid, sampleSummaryLabel, baselineSummaryLabel);
+            double rate = eligible * 100.0 / evaluated;
+            passRateCard.setValueText(String.format("%.1f%%", rate));
+            passRateCard.setSubtext(eligible + " eligible / " + evaluated + " selected");
+            DashboardAnalytics.Baseline baseline = analysis.baseline();
+            if (baseline.isAvailable()) {
+                impactCard.setValue(baseline.changedDecisions());
+                impactCard.setSubtext("Changed of " + baseline.sharedApplicants() + " paired");
+                impactCard.setDeltaText("vs v" + baseline.versionNumber());
                 impactCard.setDeltaStyle("delta-flat");
+                passRateCard.setDeltaText(String.format("%+.1f pp paired vs v%d",
+                        baseline.currentPassRate() - baseline.passRate(), baseline.versionNumber()));
+                passRateCard.setDeltaStyle(baseline.currentPassRate() >= baseline.passRate()
+                        ? "delta-up" : "delta-down");
+                baselineSummaryLabel.setText(String.format(
+                        "Baseline: immediately preceding saved policy version v%d at %.1f%% (%d / %d eligible); current selected cohort before the decision-status filter at %.1f%% (%d / %d eligible). Rates are paired by applicant ID; the evaluation-run filter applies only to current results.",
+                        baseline.versionNumber(), baseline.passRate(), baseline.eligibleApplicants(),
+                        baseline.sharedApplicants(), baseline.currentPassRate(), baseline.currentEligibleApplicants(),
+                        baseline.sharedApplicants()));
+            } else {
+                impactCard.setValueText("N/A");
+                impactCard.setSubtext("No paired prior-version results");
+                impactCard.setDeltaText("No baseline");
+                impactCard.setDeltaStyle("delta-flat");
+                passRateCard.setDeltaText("No baseline");
+                passRateCard.setDeltaStyle("delta-flat");
+                baselineSummaryLabel.setText(filters.policyId() == null || filters.versionNumber() == null
+                        ? "Baseline unavailable: select one policy and version to compare with the immediately preceding saved version."
+                        : "Baseline unavailable: no prior saved version has results for the selected applicants.");
             }
         }
+        sampleSummaryLabel.setText("Sample: " + evaluated + " distinct evaluated applicants after filters. "
+                + "Pass rate denominator: " + evaluated + ". Near-miss denominator: "
+                + funnel.rejectedWithRuleDetails() + " rejected results with recorded rule details.");
+        if (evaluated == 0) {
+            impactCard.setDeltaText("No selected results");
+            passRateCard.setDeltaText("No selected results");
+        }
+        eligibleCard.setDeltaText("Selected sample");
+        rejectedCard.setDeltaText("Selected sample");
+        eligibleCard.setDeltaStyle("delta-flat");
+        rejectedCard.setDeltaStyle("delta-flat");
         if (!hasAnimatedEntrance) {
-            Motion.staggeredFadeUp(List.of(totalCard, eligibleCard, rejectedCard, passRateCard, impactCard));
+            Motion.staggeredFadeUp(List.of(totalCard, eligibleCard, rejectedCard, nearMissCard,
+                    passRateCard, impactCard));
             hasAnimatedEntrance = true;
         }
     }
@@ -863,7 +1393,7 @@ public class DashboardView implements BaseView {
         if (results.isEmpty()) {
             chartCard.getChildren().setAll(new EmptyState(Icons.EVALUATION, "No evaluations yet",
                     "Evaluate applicants to see the eligible and rejected distribution.",
-                    "Evaluate All", this::evaluateAll));
+                    null, null));
             return;
         }
         if (chartCard.getChildren().isEmpty() || chartCard.getChildren().get(0) != pieVisual) {
@@ -885,47 +1415,41 @@ public class DashboardView implements BaseView {
         }
     }
 
-    private void renderComplianceChart(List<EvaluationResult> results) {
+    private void renderComplianceChart(DashboardAnalytics.Analysis analysis) {
+        List<DashboardAnalytics.RuleImpact> impacts = analysis.ruleImpacts();
+        List<EvaluationResult> results = analysis.evaluations();
+        ruleSampleSummaryLabel.setText("Each bar counts distinct applicants assessed for that rule; denominators vary by recorded rule details.");
         if (results.isEmpty()) {
             barCard.getChildren().setAll(new EmptyState(Icons.POLICIES, "No criteria data",
                     "Criteria compliance appears after applicants have been evaluated.",
-                    "Evaluate All", this::evaluateAll));
+                    null, null));
             return;
         }
         if (barCard.getChildren().isEmpty() || barCard.getChildren().get(0) != barChart) {
             barCard.getChildren().setAll(barChart);
         }
-        Map<String, Integer> passed = new HashMap<>();
-        Map<String, Integer> failed = new HashMap<>();
-        for (EvaluationResult result : results) {
-            for (ConditionResult condition : result.getConditionResults()) {
-                String name = Objects.requireNonNullElse(condition.getConditionName(), "Unnamed criterion");
-                (condition.isPassed() ? passed : failed).merge(name, 1, Integer::sum);
-            }
-        }
-        if (passed.isEmpty() && failed.isEmpty()) {
+        if (impacts.isEmpty()) {
             barCard.getChildren().setAll(new EmptyState(Icons.POLICIES, "No criteria data",
                     "These evaluations do not contain condition-level results.",
-                    "Evaluate All", this::evaluateAll));
+                    null, null));
             return;
         }
-        List<String> names = new ArrayList<>();
-        names.addAll(passed.keySet());
-        failed.keySet().stream().filter(name -> !passed.containsKey(name)).forEach(names::add);
-        names.sort(String.CASE_INSENSITIVE_ORDER);
         XYChart.Series<Number, String> passSeries = new XYChart.Series<>();
         passSeries.setName("Passed");
         XYChart.Series<Number, String> failSeries = new XYChart.Series<>();
         failSeries.setName("Failed");
-        for (String name : names) {
-            passSeries.getData().add(new XYChart.Data<>(passed.getOrDefault(name, 0), name));
-            failSeries.getData().add(new XYChart.Data<>(failed.getOrDefault(name, 0), name));
+        Map<String, Integer> denominatorByRule = new HashMap<>();
+        for (DashboardAnalytics.RuleImpact impact : impacts) {
+            passSeries.getData().add(new XYChart.Data<>(impact.passedApplicants(), impact.ruleName()));
+            failSeries.getData().add(new XYChart.Data<>(impact.failedApplicants(), impact.ruleName()));
+            denominatorByRule.put(impact.ruleName(), impact.assessedApplicants());
         }
         barChart.getData().setAll(passSeries, failSeries);
         for (XYChart.Series<Number, String> series : barChart.getData()) {
             for (XYChart.Data<Number, String> datum : series.getData()) {
                 String tooltipText = series.getName() + ": " + datum.getYValue()
-                        + " — " + datum.getXValue();
+                        + " of " + denominatorByRule.getOrDefault(datum.getYValue(), 0)
+                        + " assessed applicants — " + datum.getXValue();
                 datum.nodeProperty().addListener((observable, oldNode, node) -> {
                     if (node != null) Tooltip.install(node, new Tooltip(tooltipText));
                 });
@@ -950,50 +1474,65 @@ public class DashboardView implements BaseView {
         recentEvaluationsSlot.getChildren().setAll(recentEvaluations);
     }
 
-    private void renderNeedsAttention(List<EvaluationResult> results) {
-        if (results.isEmpty()) {
+    private void renderNeedsAttention(DashboardAnalytics.Analysis analysis) {
+        DashboardAnalytics.Funnel funnel = analysis.funnel();
+        if (funnel.evaluated() == 0) {
             needsAttentionSlot.getChildren().setAll(new EmptyState(Icons.CHECK,
-                    "Nothing to flag yet", "Evaluate applicants to identify criteria that need attention.",
-                    "Evaluate All", this::evaluateAll));
-            return;
-        }
-        Map<String, int[]> counts = new HashMap<>();
-        for (EvaluationResult result : results) {
-            for (ConditionResult condition : result.getConditionResults()) {
-                String name = Objects.requireNonNullElse(condition.getConditionName(), "Unnamed criterion");
-                int[] count = counts.computeIfAbsent(name, ignored -> new int[2]);
-                count[1]++;
-                if (!condition.isPassed()) count[0]++;
-            }
-        }
-        List<Map.Entry<String, int[]>> attention = counts.entrySet().stream()
-                .filter(entry -> entry.getValue()[0] > 0)
-                .sorted(Map.Entry.<String, int[]>comparingByValue(
-                        Comparator.comparingInt((int[] count) -> count[0]).reversed()))
-                .limit(6)
-                .collect(Collectors.toList());
-        if (attention.isEmpty()) {
-            needsAttentionSlot.getChildren().setAll(new EmptyState(Icons.CHECK,
-                    "No failing criteria", "All recorded criteria passed for this version.",
+                    "No decision funnel data", "Evaluated applicant results will appear here.",
                     null, null));
             return;
         }
         needsAttentionList.getChildren().clear();
-        for (Map.Entry<String, int[]> entry : attention) {
-            Label name = new Label(entry.getKey());
-            name.getStyleClass().add("insight-title");
-            Label meta = new Label(entry.getValue()[0] + " failed of " + entry.getValue()[1]);
-            meta.getStyleClass().add("margin-chip");
-            Hyperlink action = new Hyperlink("Re-evaluate");
-            action.getStyleClass().add("link-action");
-            action.setOnAction(event -> evaluateAll());
-            HBox.setHgrow(name, Priority.ALWAYS);
-            HBox row = new HBox(10, name, meta, action);
-            row.getStyleClass().add("insight-row");
-            row.setAlignment(Pos.CENTER_LEFT);
-            needsAttentionList.getChildren().add(row);
+        needsAttentionList.getChildren().addAll(
+                funnelRow("Evaluated applicants", funnel.evaluated(), funnel.evaluated()),
+                funnelRow("Eligible", funnel.eligible(), funnel.evaluated()),
+                funnelRow("Rejected", funnel.rejected(), funnel.evaluated()),
+                funnelRow("Near-miss · one recorded rule failure", funnel.nearMisses(),
+                        funnel.rejectedWithRuleDetails()));
+        Label reasonsTitle = new Label("COMMON REJECTION REASONS");
+        reasonsTitle.getStyleClass().add("caption-label");
+        needsAttentionList.getChildren().add(reasonsTitle);
+        List<DashboardAnalytics.RuleImpact> rejectionReasons = analysis.rejectionReasons().stream()
+                .filter(impact -> impact.failedApplicants() > 0).limit(6).toList();
+        if (rejectionReasons.isEmpty()) {
+            Label none = new Label("No recorded failed rule details for this sample.");
+            none.getStyleClass().add("page-subtitle");
+            needsAttentionList.getChildren().add(none);
+        } else {
+            for (DashboardAnalytics.RuleImpact impact : rejectionReasons) {
+                Label rule = new Label(impact.ruleName());
+                rule.getStyleClass().add("insight-title");
+                rule.setWrapText(true);
+                Label count = new Label(impact.failedApplicants() + " / "
+                        + impact.assessedApplicants() + " assessed");
+                count.getStyleClass().add("margin-chip");
+                ProgressBar failureRate = new ProgressBar(
+                        impact.assessedApplicants() == 0 ? 0
+                                : (double) impact.failedApplicants() / impact.assessedApplicants());
+                failureRate.setMaxWidth(Double.MAX_VALUE);
+                HBox.setHgrow(failureRate, Priority.ALWAYS);
+                HBox row = new HBox(10, rule, failureRate, count);
+                row.getStyleClass().add("insight-row");
+                row.setAlignment(Pos.CENTER_LEFT);
+                needsAttentionList.getChildren().add(row);
+            }
         }
         needsAttentionSlot.getChildren().setAll(needsAttentionList);
+    }
+
+    private HBox funnelRow(String label, int count, int denominator) {
+        Label name = new Label(label);
+        name.getStyleClass().add("insight-title");
+        name.setWrapText(true);
+        Label value = new Label(count + " / " + denominator);
+        value.getStyleClass().add("margin-chip");
+        ProgressBar share = new ProgressBar(denominator == 0 ? 0 : (double) count / denominator);
+        share.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(share, Priority.ALWAYS);
+        HBox row = new HBox(10, name, share, value);
+        row.getStyleClass().add("insight-row");
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
     }
 
     private void showSkeleton(StackPane slot, int blocks) {
@@ -1120,7 +1659,8 @@ public class DashboardView implements BaseView {
     private void unbindEvaluationButton(Task<?> task) {
         if (evaluateAllButton.textProperty().isBound()) evaluateAllButton.textProperty().unbind();
         evaluateAllButton.setText("Evaluate All");
-        evaluateAllButton.setDisable(false);
+        evaluateAllButton.setDisable(AppContext.getInstance().selectedPolicyProperty().get() == null
+                || AppContext.getInstance().selectedVersionProperty().get() == null);
         cancelEvaluationButton.setVisible(false);
         cancelEvaluationButton.setManaged(false);
         if (activeEvaluationTask == task) activeEvaluationTask = null;
@@ -1130,8 +1670,20 @@ public class DashboardView implements BaseView {
         return evaluatedOn == null ? "Unknown" : updatedFormatter.format(evaluatedOn);
     }
 
-    private record DashboardData(List<Applicant> applicants, List<EvaluationResult> results,
-                                 List<EvaluationResult> previousResults) { }
+    private record ThresholdEditor(HBox row,
+                                   ComboBox<WhatIfSimulator.NumericRule> ruleChoice,
+                                   Slider slider,
+                                   Spinner<Double> numericInput) { }
+
+    private record BooleanRuleEditor(WhatIfSimulator.BooleanRule rule, ChoiceBox<String> choice) { }
+
+    private record MultiSelectRuleEditor(WhatIfSimulator.MultiSelectRule rule,
+                                         ListView<String> values,
+                                         TextField valuesInput) { }
+
+    private record DashboardSnapshot(List<ProgramConfiguration> programs,
+                                     List<DashboardAnalytics.RunOption> runs,
+                                     DashboardAnalytics.Analysis analysis) { }
 
     @Override
     public Node getRoot() {
@@ -1140,7 +1692,6 @@ public class DashboardView implements BaseView {
 
     @Override
     public void onShow() {
-        configureWhatIfVersions(AppContext.getInstance().selectedPolicyProperty().get());
         refreshDashboard();
     }
 }

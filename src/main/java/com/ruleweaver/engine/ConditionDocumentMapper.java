@@ -24,6 +24,12 @@ public final class ConditionDocumentMapper {
             return new Document("conditionType", skill.getType())
                     .append("requiredSkill", skill.getRequiredSkill());
         }
+        if (condition instanceof FieldCondition field) {
+            return new Document("conditionType", field.getType())
+                    .append("fieldKey", field.getFieldKey())
+                    .append("operator", field.getOperator().name())
+                    .append("expectedValue", field.getExpectedValue());
+        }
         if (condition instanceof CompositeCondition composite) {
             List<Document> children = composite.getSubconditions().stream()
                     .map(ConditionDocumentMapper::toDocument)
@@ -55,6 +61,16 @@ public final class ConditionDocumentMapper {
         }
         if ("SkillCondition".equals(type)) {
             return new SkillCondition(firstString(document, "requiredSkill", "skill"));
+        }
+        if ("FieldCondition".equals(type)) {
+            String fieldKey = document.getString("fieldKey");
+            String operator = document.getString("operator");
+            if (operator == null) {
+                throw new IllegalArgumentException("Field condition requires an operator.");
+            }
+            return new FieldCondition(fieldKey,
+                    com.ruleweaver.model.FieldOperator.valueOf(operator),
+                    document.get("expectedValue"));
         }
         if ("CompositeCondition".equals(type)) {
             String name = document.getString("name");

@@ -27,7 +27,7 @@ public class MongoPolicyRepository implements PolicyRepository {
 
     public MongoPolicyRepository(MongoDatabase database) {
         policies = database.getCollection("policies");
-        versions = database.getCollection("policy_versions");
+        versions = database.getCollection(PolicyVersionRepository.COLLECTION_NAME);
         versions.createIndex(Indexes.ascending("policyId", "version"), new IndexOptions().unique(true));
     }
 
@@ -40,6 +40,7 @@ public class MongoPolicyRepository implements PolicyRepository {
                 .append("name", policy.getName())
                 .append("description", policy.getDescription())
                 .append("category", policy.getCategory())
+                .append("programId", policy.getProgramId())
                 .append("activeVersionNumber", policy.getPersistedActiveVersionNumber())
                 .append("archived", policy.isArchived());
         policies.replaceOne(Filters.eq("_id", policy.getId()), document, new ReplaceOptions().upsert(true));
@@ -72,9 +73,8 @@ public class MongoPolicyRepository implements PolicyRepository {
 
     @Override
     public boolean deleteById(String id) {
-        boolean deleted = policies.deleteOne(Filters.eq("_id", id)).getDeletedCount() > 0;
-        versions.deleteMany(Filters.eq("policyId", id));
-        return deleted;
+        return policies.updateOne(Filters.eq("_id", id),
+                new Document("$set", new Document("archived", true))).getMatchedCount() > 0;
     }
 
     @Override
@@ -97,6 +97,9 @@ public class MongoPolicyRepository implements PolicyRepository {
     public void saveVersion(String policyId, PolicyVersion version) {
         if (policyId == null || version == null) {
             throw new IllegalArgumentException("Policy ID and policy version are required.");
+        }
+        if (version.getVersionNumber() <= 0) {
+            throw new IllegalArgumentException("Version number must be greater than zero.");
         }
         if (findVersion(policyId, version.getVersionNumber()).isPresent()) {
             throw new IllegalStateException("Policy version " + version.getVersionNumber()
@@ -133,6 +136,7 @@ public class MongoPolicyRepository implements PolicyRepository {
                 document.getString("name"),
                 document.getString("description"));
         policy.setCategory(document.getString("category"));
+        policy.setProgramId(document.getString("programId"));
         Integer activeVersion = document.getInteger("activeVersionNumber");
         policy.setActiveVersionNumber(activeVersion == null ? 0 : activeVersion);
         policy.setArchived(Boolean.TRUE.equals(document.getBoolean("archived")));
@@ -141,12 +145,16 @@ public class MongoPolicyRepository implements PolicyRepository {
 
     private PolicyVersion toPolicyVersion(Document document) {
         List<Condition> conditions = new ArrayList<>();
-        List<Document> conditionDocuments = document.getList("conditions", Document.class, List.of());
+        List<Document> conditionDocuments = document.getList("conditions", Document.class);
+        if (conditionDocuments == null) {
+            conditionDocuments = document.getList("rules", Document.class, List.of());
+        }
         for (Document conditionDocument : conditionDocuments) {
             conditions.add(ConditionDocumentMapper.fromDocument(conditionDocument));
         }
+        Object id = document.get("_id");
         PolicyVersion version = new PolicyVersion(
-                document.getString("_id"),
+                id == null ? null : id.toString(),
                 document.getString("policyId"),
                 document.getInteger("version", 0),
                 document.getString("description"),

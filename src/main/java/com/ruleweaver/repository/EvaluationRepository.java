@@ -64,9 +64,11 @@ public class EvaluationRepository implements EvaluationResultRepository {
 
     @Override
     public List<EvaluationResult> findByPolicyAndVersion(String policyId, int versionNumber) {
-        return collection.find(Filters.and(
-                        Filters.eq("policyId", policyId),
-                        Filters.eq("policyVersion", versionNumber)))
+        String policyVersionId = policyId + "_v" + versionNumber;
+        return collection.find(Filters.or(
+                        Filters.and(Filters.eq("policyId", policyId),
+                                Filters.eq("policyVersion", versionNumber)),
+                        Filters.eq("policyVersionId", policyVersionId)))
                 .sort(Sorts.ascending("evaluatedOn"))
                 .map(EvaluationResultDocumentMapper::fromDocument)
                 .into(new ArrayList<>());
@@ -88,14 +90,11 @@ public class EvaluationRepository implements EvaluationResultRepository {
 
     @Override
     public long countByPolicyAndVersion(String policyId, int versionNumber) {
-        return collection.countDocuments(Filters.and(
-                Filters.eq("policyId", policyId),
-                Filters.eq("policyVersion", versionNumber)));
+        String policyVersionId = policyId + "_v" + versionNumber;
+        return collection.countDocuments(Filters.or(
+                Filters.and(Filters.eq("policyId", policyId),
+                        Filters.eq("policyVersion", versionNumber)),
+                Filters.eq("policyVersionId", policyVersionId)));
     }
 
-    public void deleteDemoEvaluations(List<String> applicantIds, String policyId) {
-        collection.deleteMany(Filters.or(
-                Filters.in("applicantId", applicantIds),
-                Filters.eq("policyId", policyId)));
-    }
 }

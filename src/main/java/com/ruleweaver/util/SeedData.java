@@ -6,8 +6,10 @@ import com.ruleweaver.engine.NumericCondition;
 import com.ruleweaver.engine.Operator;
 import com.ruleweaver.engine.SkillCondition;
 import com.ruleweaver.model.Policy;
+import com.ruleweaver.model.PolicyVersion;
 import com.ruleweaver.repository.ApplicantRepository;
 import com.ruleweaver.repository.MongoPolicyRepository;
+import com.ruleweaver.repository.PolicyRepository;
 import org.bson.Document;
 
 import java.util.Arrays;
@@ -27,32 +29,37 @@ public final class SeedData {
             applicantRepository.upsert(applicant("APP-102", "Bob Johnson", 7.9, 75, "Python", "Java"));
             applicantRepository.upsert(applicant("APP-103", "Carol White", 8.5, 72, "C++", "Java"));
 
-            Policy policy = policyRepository.findById("POL-INTERN").orElseGet(() ->
-                    new Policy("POL-INTERN", "Software Engineering Internship Eligibility",
-                            "Screening criteria for student summer internship pool"));
-            if (policy.getVersion(1).isEmpty()) {
-                policy.addVersion(new com.ruleweaver.model.PolicyVersion(
-                        "POL-INTERN_v1",
-                        "POL-INTERN",
-                        1,
-                        "Internship Eligibility",
-                        Arrays.asList(
-                                new NumericCondition("gpa", Operator.GREATER_THAN_OR_EQUAL, 8.0),
-                                new NumericCondition("interviewScore", Operator.GREATER_THAN_OR_EQUAL, 70.0),
-                                new SkillCondition("Java"))));
-            }
-            if (policy.getPersistedActiveVersionNumber() == 0 && !policy.getVersions().isEmpty()) {
-                policy.setActiveVersionNumber(policy.getLatestVersion().orElseThrow().getVersionNumber());
-            }
-            policyRepository.save(policy);
-            for (com.ruleweaver.model.PolicyVersion version : policy.getVersions()) {
-                if (policyRepository.findVersion(policy.getId(), version.getVersionNumber()).isEmpty()) {
-                    policyRepository.saveVersion(policy.getId(), version);
-                }
-            }
+            ensureSamplePolicy(policyRepository);
             System.out.println("Database successfully seeded with sample data.");
         } finally {
             MongoConfig.close();
+        }
+    }
+
+    static void ensureSamplePolicy(PolicyRepository policyRepository) {
+        Policy policy = policyRepository.findById("POL-INTERN").orElseGet(() ->
+                new Policy("POL-INTERN", "Software Engineering Internship Eligibility",
+                        "Screening criteria for student summer internship pool"));
+        if (policy.getVersion(1).isEmpty()) {
+            policy.addVersion(new PolicyVersion(
+                    "POL-INTERN_v1",
+                    "POL-INTERN",
+                    1,
+                    "Internship Eligibility",
+                    Arrays.asList(
+                            new NumericCondition("gpa", Operator.GREATER_THAN_OR_EQUAL, 8.0),
+                            new NumericCondition("interviewScore", Operator.GREATER_THAN_OR_EQUAL, 70.0),
+                            new SkillCondition("Java"))));
+        }
+        if (policy.getPersistedActiveVersionNumber() == 0 && !policy.getVersions().isEmpty()) {
+            policy.setActiveVersionNumber(policy.getLatestVersion().orElseThrow().getVersionNumber());
+        }
+        policy.setArchived(false);
+        policyRepository.save(policy);
+        for (PolicyVersion version : policy.getVersions()) {
+            if (policyRepository.findVersion(policy.getId(), version.getVersionNumber()).isEmpty()) {
+                policyRepository.saveVersion(policy.getId(), version);
+            }
         }
     }
 

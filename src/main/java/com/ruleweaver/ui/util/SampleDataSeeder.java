@@ -67,6 +67,11 @@ public class SampleDataSeeder {
                                 new NumericCondition("gpa", Operator.GREATER_THAN_OR_EQUAL, 8.5),
                                 new NumericCondition("interviewScore", Operator.GREATER_THAN_OR_EQUAL, 70.0),
                                 new SkillCondition("Java")));
+                policy = ctx.getPolicyRepository().findById(DEMO_POLICY_ID).orElseThrow();
+            }
+            if (policy.isArchived()) {
+                policy.setArchived(false);
+                ctx.getPolicyRepository().save(policy);
             }
 
             Policy selectedPolicy = policy;
@@ -89,10 +94,11 @@ public class SampleDataSeeder {
             if (applicantRepository != null) {
                 DEMO_APPLICANT_IDS.forEach(applicantRepository::delete);
             }
-            if (ctx.getEvaluationRepository() != null) {
-                ctx.getEvaluationRepository().deleteDemoEvaluations(DEMO_APPLICANT_IDS, DEMO_POLICY_ID);
+            Policy demoPolicy = ctx.getPolicyRepository().findById(DEMO_POLICY_ID).orElse(null);
+            if (demoPolicy != null) {
+                demoPolicy.setArchived(true);
+                ctx.getPolicyRepository().save(demoPolicy);
             }
-            ctx.getPolicyRepository().deleteById(DEMO_POLICY_ID);
             ctx.loadApplicantsAsync(() -> ctx.loadPoliciesAsync(onComplete), error ->
                     ctx.showToast(Toast.error(
                             "Clear Demo Data Failed",

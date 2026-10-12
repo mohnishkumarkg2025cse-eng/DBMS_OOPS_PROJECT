@@ -5,6 +5,7 @@ import com.ruleweaver.engine.NumericCondition;
 import com.ruleweaver.engine.SkillCondition;
 import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
+import com.ruleweaver.model.ProgramConfiguration;
 import com.ruleweaver.config.MongoConfig;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.components.*;
@@ -25,7 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.BooleanSupplier;
+import javafx.util.StringConverter;
 
 /**
  * Screen 2: Policy & Version Manager (Master-Detail).
@@ -484,7 +485,7 @@ public class PoliciesView implements BaseView {
 
         VBox box = new VBox(16);
         box.getStyleClass().add("modal-window");
-        box.setPrefWidth(540);
+        box.setPrefWidth(900);
 
         Label title = new Label("Define New Business Policy");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: -color-text-primary;");
@@ -495,26 +496,38 @@ public class PoliciesView implements BaseView {
         TextField descInput = new TextField();
         descInput.setPromptText("Description / Business Intent");
 
-        VBox rowsContainer = new VBox(10);
-        Label preview = livePreviewLabel();
-        Label formError = formErrorLabel();
-        FlowPane diffChips = new FlowPane(8, 8);
+        ComboBox<ProgramConfiguration> programChoice = new ComboBox<>();
+        programChoice.setPromptText("Legacy policy (no program schema)");
+        programChoice.setConverter(new StringConverter<>() {
+            @Override public String toString(ProgramConfiguration program) {
+                return program == null ? "" : program.getName();
+            }
+            @Override public ProgramConfiguration fromString(String value) { return null; }
+        });
+        AppContext context = AppContext.getInstance();
+        PolicyRuleBuilder ruleBuilder = new PolicyRuleBuilder(null, List.of());
+        context.runAsync(() -> {
+            List<ProgramConfiguration> available = context.getProgramService().listActivePrograms();
+            Platform.runLater(() -> {
+                programChoice.getItems().setAll(available);
+                ProgramConfiguration selected = context.selectedProgramProperty().get();
+                if (selected != null) {
+                    available.stream().filter(program -> program.getId().equals(selected.getId()))
+                            .findFirst().ifPresent(programChoice::setValue);
+                }
+                if (programChoice.getValue() == null) ruleBuilder.setProgram(null);
+            });
+        });
+
         Button saveBtn = new Button("Create Policy");
         saveBtn.getStyleClass().add("btn-primary");
-        Runnable refreshBuilder = () -> refreshRuleBuilder(
-                rowsContainer, preview, diffChips, formError, saveBtn, null, 1,
-                () -> !nameInput.getText().trim().isEmpty());
-        Button addRuleBtn = new Button("Add Condition");
-        addRuleBtn.getStyleClass().add("btn-secondary");
-        addRuleBtn.setGraphic(Icons.create(Icons.PLUS, 0.65, "#89b4fa"));
-        addRuleBtn.setOnAction(e -> attachConditionRow(rowsContainer, refreshBuilder));
-
-        attachConditionRow(rowsContainer, refreshBuilder);
-        nameInput.textProperty().addListener((obs, oldVal, newVal) -> refreshBuilder.run());
-
-        ScrollPane rowsScroll = new ScrollPane(rowsContainer);
-        rowsScroll.setFitToWidth(true);
-        rowsScroll.setMaxHeight(260);
+        ruleBuilder.setValidityListener(valid -> saveBtn.setDisable(
+                !valid || nameInput.getText() == null || nameInput.getText().trim().isEmpty()));
+        nameInput.textProperty().addListener((obs, oldVal, newVal) -> ruleBuilder.refresh());
+        programChoice.valueProperty().addListener((obs, oldValue, newValue) ->
+                ruleBuilder.setProgram(newValue));
+        ruleBuilder.setImpactPreviewBase(new PolicyVersion("draft-preview", "draft-preview", 1,
+                "Unsaved draft", List.of()));
 
         HBox btnRow = new HBox(10);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
@@ -530,18 +543,20 @@ public class PoliciesView implements BaseView {
                 return;
             }
 
-            refreshBuilder.run();
-            List<Condition> conditions = collectValidConditions(rowsContainer);
-            if (conditions == null) {
+            if (!ruleBuilder.isValid()) {
                 return;
             }
+            List<Condition> conditions = ruleBuilder.getConditions();
 
             String policyId = "POL-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+            String description = descInput.getText().trim();
+            String programId = programChoice.getValue() == null ? null : programChoice.getValue().getId();
             AppContext.getInstance().runAsync(() -> {
                 Policy policy = AppContext.getInstance().getPolicyService().createPolicy(
                         policyId,
                         name,
-                        descInput.getText().trim(),
+                        description,
+                        programId,
                         conditions
                 );
                 Platform.runLater(() -> {
@@ -564,13 +579,11 @@ public class PoliciesView implements BaseView {
                 title,
                 new VBox(4, new Label("Policy Name *"), nameInput),
                 new VBox(4, new Label("Description"), descInput),
-                new HBox(8, new Label("Initial Conditions"), addRuleBtn),
-                preview,
-                formError,
-                rowsScroll,
+                new VBox(4, new Label("Program schema"), programChoice),
+                new Label("Initial conditions"),
+                ruleBuilder,
                 btnRow
         );
-        refreshBuilder.run();
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
@@ -612,7 +625,7 @@ public class PoliciesView implements BaseView {
 
         VBox box = new VBox(16);
         box.getStyleClass().add("modal-window");
-        box.setPrefWidth(540);
+        box.setPrefWidth(900);
 
         int nextVerNum = policy.getVersions().size() + 1;
         Label title = new Label("Create Version " + nextVerNum + " for '" + policy.getName() + "'");
@@ -621,33 +634,29 @@ public class PoliciesView implements BaseView {
         TextField descInput = new TextField(initialNote);
         descInput.setPromptText("Version change rationale / notes");
 
-        VBox rowsContainer = new VBox(10);
-        Label preview = livePreviewLabel();
-        Label formError = formErrorLabel();
-        FlowPane diffChips = new FlowPane(8, 8);
+        PolicyRuleBuilder ruleBuilder = new PolicyRuleBuilder(null, initialConditions);
         List<Condition> previousRules = policy.getLatestVersion()
                 .map(PolicyVersion::getConditions)
                 .orElse(List.of());
+        FlowPane diffChips = new FlowPane(8, 8);
         Button saveBtn = new Button("Save Version " + nextVerNum);
         saveBtn.getStyleClass().add("btn-primary");
-        Runnable refreshBuilder = () -> refreshRuleBuilder(
-                rowsContainer, preview, diffChips, formError, saveBtn, previousRules, nextVerNum, () -> true);
-        Button addRuleBtn = new Button("Add Condition");
-        addRuleBtn.getStyleClass().add("btn-secondary");
-        addRuleBtn.setGraphic(Icons.create(Icons.PLUS, 0.65, "#89b4fa"));
-        addRuleBtn.setOnAction(e -> attachConditionRow(rowsContainer, refreshBuilder));
-
-        for (Condition condition : initialConditions) {
-            ConditionRow row = attachConditionRow(rowsContainer, refreshBuilder);
-            row.populateFrom(condition);
+        ruleBuilder.setValidityListener(valid -> saveBtn.setDisable(!valid));
+        ruleBuilder.setValidationListener(errors ->
+                refreshVersionDiff(diffChips, previousRules, ruleBuilder, nextVerNum, errors));
+        refreshVersionDiff(diffChips, previousRules, ruleBuilder, nextVerNum, ruleBuilder.getValidationErrors());
+        PolicyVersion impactBase = policy.getVersion(sourceVersionNumber).orElseGet(() ->
+                policy.getLatestVersion().orElseGet(() ->
+                        new PolicyVersion(policy.getId() + "_preview", policy.getId(), 1,
+                                "Draft impact baseline", List.of())));
+        ruleBuilder.setImpactPreviewBase(impactBase);
+        AppContext context = AppContext.getInstance();
+        if (policy.getProgramId() != null) {
+            context.runAsync(() -> {
+                ProgramConfiguration program = context.getProgramService().findProgram(policy.getProgramId());
+                Platform.runLater(() -> ruleBuilder.setProgram(program));
+            });
         }
-        if (rowsContainer.getChildren().isEmpty()) {
-            attachConditionRow(rowsContainer, refreshBuilder);
-        }
-
-        ScrollPane rowsScroll = new ScrollPane(rowsContainer);
-        rowsScroll.setFitToWidth(true);
-        rowsScroll.setMaxHeight(260);
 
         HBox btnRow = new HBox(10);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
@@ -657,11 +666,10 @@ public class PoliciesView implements BaseView {
         cancelBtn.setOnAction(e -> rootPane.getChildren().remove(modalBackdrop));
 
         saveBtn.setOnAction(e -> {
-            refreshBuilder.run();
-            List<Condition> conditions = collectValidConditions(rowsContainer);
-            if (conditions == null) {
+            if (!ruleBuilder.isValid()) {
                 return;
             }
+            List<Condition> conditions = ruleBuilder.getConditions();
 
             AppContext.getInstance().runAsync(() -> {
                 PolicyVersion newVersion = AppContext.getInstance().getPolicyService().createNewVersion(
@@ -687,117 +695,15 @@ public class PoliciesView implements BaseView {
         box.getChildren().addAll(
                 title,
                 new VBox(4, new Label("Version Rationale / Notes"), descInput),
-                new HBox(8, new Label("Version Criteria (Cloned from v" + sourceVersionNumber + ")"), addRuleBtn),
-                preview,
+                new Label("Version criteria (drafted from v" + sourceVersionNumber + ")"),
+                ruleBuilder,
                 diffChips,
-                formError,
-                rowsScroll,
                 btnRow
         );
-        refreshBuilder.run();
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
         Motion.modalScaleIn(box);
-    }
-
-    private ConditionRow attachConditionRow(VBox rowsContainer, Runnable onChange) {
-        ConditionRow row = new ConditionRow(removed -> {
-            rowsContainer.getChildren().remove(removed);
-            onChange.run();
-        });
-        row.setValidationChangeListener(onChange);
-        rowsContainer.getChildren().add(row);
-        onChange.run();
-        return row;
-    }
-
-    private void refreshRuleBuilder(VBox rowsContainer, Label preview, FlowPane diffChips, Label formError,
-                                    Button saveBtn, List<Condition> previousRules, int versionNumber,
-                                    BooleanSupplier extraValid) {
-        List<ConditionRow> rows = collectRows(rowsContainer);
-        Map<String, Integer> signatures = new HashMap<>();
-        for (ConditionRow row : rows) {
-            String signature = row.getSignature();
-            if (signature != null) {
-                signatures.merge(signature, 1, Integer::sum);
-            }
-        }
-
-        boolean rowsValid = true;
-        List<String> clauses = new ArrayList<>();
-        List<Condition> drafted = new ArrayList<>();
-        for (ConditionRow row : rows) {
-            String message = row.getValidationMessage();
-            String signature = row.getSignature();
-            if (signature != null && signatures.getOrDefault(signature, 0) > 1) {
-                message = "This rule duplicates another rule.";
-            }
-            row.setErrorMessage(message);
-            if (message != null) {
-                rowsValid = false;
-            }
-            clauses.add(row.getPreviewClause());
-            if (message == null) {
-                drafted.add(row.buildCondition());
-            }
-        }
-
-        preview.setText(clauses.isEmpty()
-                ? "Eligible if …"
-                : "Eligible if " + String.join(" AND ", clauses));
-
-        if (rows.isEmpty()) {
-            formError.setText("Add at least one rule.");
-            formError.setVisible(true);
-            formError.setManaged(true);
-        } else {
-            formError.setText("");
-            formError.setVisible(false);
-            formError.setManaged(false);
-        }
-
-        boolean extraOk = extraValid == null || extraValid.getAsBoolean();
-        saveBtn.setDisable(!(rowsValid && !rows.isEmpty() && extraOk));
-        renderDiffChips(diffChips, previousRules, drafted, versionNumber);
-    }
-
-    private List<Condition> collectValidConditions(VBox rowsContainer) {
-        List<ConditionRow> rows = collectRows(rowsContainer);
-        if (rows.isEmpty()) {
-            AppContext.getInstance().showToast(Toast.error("Validation Error",
-                    "At least one condition rule must be defined.", null));
-            return null;
-        }
-        List<Condition> conditions = new ArrayList<>();
-        try {
-            for (ConditionRow row : rows) {
-                conditions.add(row.buildCondition());
-            }
-        } catch (IllegalArgumentException ex) {
-            AppContext.getInstance().showToast(Toast.error("Condition Error", ex.getMessage(), null));
-            return null;
-        }
-        Map<String, Integer> signatures = new HashMap<>();
-        for (Condition condition : conditions) {
-            signatures.merge(ConditionRow.signatureOf(condition), 1, Integer::sum);
-        }
-        if (signatures.values().stream().anyMatch(count -> count > 1)) {
-            AppContext.getInstance().showToast(Toast.error("Validation Error",
-                    "Remove duplicate rules before saving.", null));
-            return null;
-        }
-        return conditions;
-    }
-
-    private List<ConditionRow> collectRows(VBox rowsContainer) {
-        List<ConditionRow> rows = new ArrayList<>();
-        for (Node child : rowsContainer.getChildren()) {
-            if (child instanceof ConditionRow row) {
-                rows.add(row);
-            }
-        }
-        return rows;
     }
 
     private void renderDiffChips(FlowPane chips, List<Condition> previousRules, List<Condition> currentRules,
@@ -847,20 +753,34 @@ public class PoliciesView implements BaseView {
         return clauses;
     }
 
-    private static Label livePreviewLabel() {
-        Label preview = new Label("Eligible if …");
-        preview.setWrapText(true);
-        preview.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: -color-accent;");
-        return preview;
-    }
-
-    private static Label formErrorLabel() {
-        Label formError = new Label();
-        formError.setWrapText(true);
-        formError.setVisible(false);
-        formError.setManaged(false);
-        formError.getStyleClass().add("policy-form-error");
-        return formError;
+    private void refreshVersionDiff(FlowPane chips, List<Condition> previousRules,
+                                    PolicyRuleBuilder ruleBuilder, int versionNumber,
+                                    List<String> validationErrors) {
+        chips.getChildren().clear();
+        if (versionNumber <= 1) {
+            chips.getChildren().add(StatusBadge.info("Initial version"));
+            return;
+        }
+        if (validationErrors != null && !validationErrors.isEmpty()) {
+            chips.getChildren().add(StatusBadge.warning("Complete valid rules to view the change summary."));
+            return;
+        }
+        List<Condition> currentRules = ruleBuilder.getConditions();
+        Map<String, String> previous = clausesBySignature(previousRules);
+        Map<String, String> current = clausesBySignature(currentRules);
+        for (Map.Entry<String, String> entry : current.entrySet()) {
+            if (!previous.containsKey(entry.getKey())) {
+                chips.getChildren().add(StatusBadge.pass("+ " + entry.getValue()));
+            }
+        }
+        for (Map.Entry<String, String> entry : previous.entrySet()) {
+            if (!current.containsKey(entry.getKey())) {
+                chips.getChildren().add(StatusBadge.fail("− " + entry.getValue()));
+            }
+        }
+        if (chips.getChildren().isEmpty()) {
+            chips.getChildren().add(StatusBadge.info("No rule changes vs previous version"));
+        }
     }
 
     @Override

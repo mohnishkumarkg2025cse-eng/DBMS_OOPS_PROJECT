@@ -12,11 +12,12 @@ import java.util.List;
 
 public class PolicyVersionRepository {
 
+    public static final String COLLECTION_NAME = "policy_versions";
     private final MongoCollection<Document> collection;
 
     // This constructor must match what you pass in SeedData and Tests
     public PolicyVersionRepository(MongoDatabase database) {
-        this.collection = database.getCollection("policy_versions");
+        this.collection = database.getCollection(COLLECTION_NAME);
 
         // Prevent duplicate version numbers for the same policy
         createIndexes();

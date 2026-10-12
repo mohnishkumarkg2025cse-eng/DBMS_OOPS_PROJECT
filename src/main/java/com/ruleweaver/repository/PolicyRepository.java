@@ -13,6 +13,7 @@ public interface PolicyRepository {
 
     List<Policy> findAll();
 
+    /** Archives a policy without removing its saved versions or evaluation history. */
     boolean deleteById(String id);
 
     Optional<PolicyVersion> findVersion(String policyId, int versionNumber);

@@ -59,21 +59,26 @@ public class ComparisonService {
             throw new IllegalArgumentException("Evaluation result lists cannot be null");
         }
 
+        List<EvaluationResult> latestV1Results = EvaluationAnalytics.latestPerApplicant(v1Results);
+        List<EvaluationResult> latestV2Results = EvaluationAnalytics.latestPerApplicant(v2Results);
         Map<String, EvaluationResult> v2Map = new HashMap<>();
-        for (EvaluationResult res : v2Results) {
+        for (EvaluationResult res : latestV2Results) {
             v2Map.put(res.getApplicantId(), res);
         }
 
-        int v1Num = v1Results.isEmpty() ? 1 : v1Results.get(0).getPolicyVersionNumber();
-        int v2Num = v2Results.isEmpty() ? 2 : v2Results.get(0).getPolicyVersionNumber();
-        String policyId = v1Results.isEmpty() ? "unknown" : v1Results.get(0).getPolicyId();
+        int v1Num = latestV1Results.isEmpty() ? 1 : latestV1Results.get(0).getPolicyVersionNumber();
+        int v2Num = latestV2Results.isEmpty() ? 2 : latestV2Results.get(0).getPolicyVersionNumber();
+        String policyId = latestV1Results.isEmpty() ? "unknown" : latestV1Results.get(0).getPolicyId();
 
         ComparisonReport report = new ComparisonReport(policyId, v1Num, v2Num);
-        report.setTotalApplicants(v1Results.size());
+        int comparedApplicants = (int) latestV1Results.stream()
+                .filter(result -> v2Map.containsKey(result.getApplicantId()))
+                .count();
+        report.setTotalApplicants(comparedApplicants);
 
         int v1Pass = 0, v1Fail = 0, v2Pass = 0, v2Fail = 0;
 
-        for (EvaluationResult res1 : v1Results) {
+        for (EvaluationResult res1 : latestV1Results) {
             EvaluationResult res2 = v2Map.get(res1.getApplicantId());
             if (res2 == null) {
                 continue;

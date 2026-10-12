@@ -14,6 +14,7 @@ public class Policy {
     private String name;
     private String description;
     private String category = "Other";
+    private String programId;
     private int activeVersionNumber;
     private boolean archived;
     private List<PolicyVersion> versions;
@@ -60,6 +61,10 @@ public class Policy {
     public void setCategory(String category) {
         this.category = category == null || category.isBlank() ? "Other" : category;
     }
+
+    public String getProgramId() { return programId; }
+
+    public void setProgramId(String programId) { this.programId = programId; }
 
     public int getActiveVersionNumber() {
         if (activeVersionNumber > 0 && getVersion(activeVersionNumber).isPresent()) {

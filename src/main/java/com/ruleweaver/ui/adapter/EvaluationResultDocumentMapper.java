@@ -22,6 +22,8 @@ public final class EvaluationResultDocumentMapper {
                 .append("applicantName", result.getApplicantName())
                 .append("policyId", result.getPolicyId())
                 .append("policyName", result.getPolicyName())
+                .append("policyVersionId", result.getPolicyVersionId())
+                .append("evaluationRunId", result.getEvaluationRunId())
                 .append("policyVersion", result.getPolicyVersionNumber())
                 .append("overallDecision", result.isOverallDecision())
                 .append("evaluatedOn", result.getEvaluatedOn() == null
@@ -48,8 +50,14 @@ public final class EvaluationResultDocumentMapper {
         result.setApplicantName(document.getString("applicantName"));
         result.setPolicyId(document.getString("policyId"));
         result.setPolicyName(document.getString("policyName"));
+        result.setPolicyVersionId(document.getString("policyVersionId"));
+        result.setEvaluationRunId(document.getString("evaluationRunId"));
         result.setPolicyVersionNumber(document.getInteger("policyVersion", 0));
-        result.setOverallDecision(Boolean.TRUE.equals(document.getBoolean("overallDecision")));
+        Boolean overallDecision = document.getBoolean("overallDecision");
+        if (overallDecision == null) {
+            overallDecision = legacyDecision(document.getString("decision"));
+        }
+        result.setOverallDecision(Boolean.TRUE.equals(overallDecision));
         String evaluatedOn = document.getString("evaluatedOn");
         result.setEvaluatedOn(evaluatedOn == null ? null : LocalDateTime.parse(evaluatedOn));
 
@@ -67,5 +75,16 @@ public final class EvaluationResultDocumentMapper {
         }
         result.setConditionResults(results);
         return result;
+    }
+
+    private static Boolean legacyDecision(String decision) {
+        if (decision == null) {
+            return null;
+        }
+        return switch (decision.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "ELIGIBLE", "APPROVED", "PASS", "PASSED" -> true;
+            case "INELIGIBLE", "NOT ELIGIBLE", "REJECTED", "FAIL", "FAILED" -> false;
+            default -> null;
+        };
     }
 }

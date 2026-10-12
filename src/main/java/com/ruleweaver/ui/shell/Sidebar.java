@@ -21,6 +21,7 @@ public class Sidebar extends VBox {
     public enum Destination {
         DASHBOARD("Dashboard", Icons.DASHBOARD),
         APPLICANTS("Applicants", Icons.APPLICANTS),
+        PROGRAMS("Programs", Icons.POLICIES),
         POLICIES("Policies", Icons.POLICIES),
         EVALUATION("Evaluation", Icons.EVALUATION),
         COMPARISON("Time Machine", Icons.COMPARISON);

@@ -830,6 +830,11 @@
     -fx-spacing: 10px;
 }
 
+.dashboard-filter > .label {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-secondary;
+}
+
 .widget-slot {
     -fx-background-color: transparent;
     -fx-min-width: 0;

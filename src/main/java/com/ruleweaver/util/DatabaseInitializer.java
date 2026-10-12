@@ -7,6 +7,8 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ValidationOptions;
 import com.ruleweaver.config.MongoConfig;
 import com.ruleweaver.repository.EvaluationRepository;
+import com.ruleweaver.repository.PolicyVersionRepository;
+import com.ruleweaver.repository.MongoProgramRepository;
 import org.bson.Document;
 
 import java.util.Arrays;
@@ -24,10 +26,13 @@ public class DatabaseInitializer {
         // 2. Initialize policies collection with validation and index
         initPoliciesCollection(db);
 
-        // 3. Initialize policy_versions collection with compound unique index
+        // 3. Initialize reusable program configurations
+        createCollectionIfNotExists(db, MongoProgramRepository.COLLECTION_NAME, programValidator());
+
+        // 4. Initialize policy_versions collection with compound unique index
         initPolicyVersionsCollection(db);
 
-        // 4. Initialize evaluations collection with query performance indexes
+        // 5. Initialize evaluations collection with query performance indexes
         initEvaluationsCollection(db);
 
         System.out.println("Database initialization completed successfully!");
@@ -59,15 +64,28 @@ public class DatabaseInitializer {
                         .append("name", new Document("bsonType", "string"))
                         .append("description", new Document("bsonType", Arrays.asList("string", "null")))
                         .append("category", new Document("bsonType", Arrays.asList("string", "null")))
+                        .append("programId", new Document("bsonType", Arrays.asList("string", "null")))
                         .append("activeVersionNumber", new Document("bsonType", "int"))
                         .append("archived", new Document("bsonType", "bool")))));
     }
 
+    static Document programValidator() {
+        Document schema = new Document("bsonType", "object")
+                .append("required", List.of("_id", "name", "template", "fields"))
+                .append("properties", new Document()
+                        .append("_id", new Document("bsonType", "string"))
+                        .append("name", new Document("bsonType", "string"))
+                        .append("template", new Document("bsonType", "string"))
+                        .append("archived", new Document("bsonType", "bool"))
+                        .append("fields", new Document("bsonType", "array")));
+        return new Document("$jsonSchema", schema);
+    }
+
     private static void initPolicyVersionsCollection(MongoDatabase db) {
-        createCollectionIfNotExists(db, "policy_versions", policyVersionValidator());
+        createCollectionIfNotExists(db, PolicyVersionRepository.COLLECTION_NAME, policyVersionValidator());
 
         // Unique Compound Index on policyId + version number
-        db.getCollection("policy_versions").createIndex(
+        db.getCollection(PolicyVersionRepository.COLLECTION_NAME).createIndex(
                 Indexes.compoundIndex(Indexes.ascending("policyId"), Indexes.ascending("version")),
                 new IndexOptions().unique(true));
     }
@@ -78,6 +96,8 @@ public class DatabaseInitializer {
                 .append("applicantName", new Document("bsonType", Arrays.asList("string", "null")))
                 .append("policyId", new Document("bsonType", "string"))
                 .append("policyName", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("policyVersionId", new Document("bsonType", Arrays.asList("string", "null")))
+                .append("evaluationRunId", new Document("bsonType", Arrays.asList("string", "null")))
                 .append("policyVersion", new Document("bsonType", "int"))
                 .append("overallDecision", new Document("bsonType", "bool"))
                 .append("evaluatedOn", new Document("bsonType", Arrays.asList("string", "null")))
@@ -106,6 +126,7 @@ public class DatabaseInitializer {
     private static void initEvaluationsCollection(MongoDatabase db) {
         createCollectionIfNotExists(db, EvaluationRepository.COLLECTION_NAME, evaluationValidator());
         db.getCollection(EvaluationRepository.COLLECTION_NAME).createIndex(Indexes.ascending("applicantId"));
+        db.getCollection(EvaluationRepository.COLLECTION_NAME).createIndex(Indexes.ascending("policyVersionId"));
         db.getCollection(EvaluationRepository.COLLECTION_NAME).createIndex(
                 Indexes.ascending("policyId", "policyVersion"));
     }

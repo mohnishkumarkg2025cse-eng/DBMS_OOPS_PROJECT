@@ -54,11 +54,13 @@ public class MainApp extends Application {
             policiesView.showNewVersionDraft(policy, simulatedVersion);
         });
         ApplicantsView applicantsView = new ApplicantsView();
+        ProgramManagerView programManagerView = new ProgramManagerView();
         EvaluationView evaluationView = new EvaluationView();
         ComparisonView comparisonView = new ComparisonView();
 
         viewRouter.registerView(Sidebar.Destination.DASHBOARD, dashboardView);
         viewRouter.registerView(Sidebar.Destination.APPLICANTS, applicantsView);
+        viewRouter.registerView(Sidebar.Destination.PROGRAMS, programManagerView);
         viewRouter.registerView(Sidebar.Destination.POLICIES, policiesView);
         viewRouter.registerView(Sidebar.Destination.EVALUATION, evaluationView);
         viewRouter.registerView(Sidebar.Destination.COMPARISON, comparisonView);
@@ -230,6 +232,7 @@ public class MainApp extends Application {
         return switch (dest) {
             case DASHBOARD -> "Real-time decision distribution, candidate velocity, and version metrics";
             case APPLICANTS -> "Manage applicant pool and evaluate eligibility credentials";
+            case PROGRAMS -> "Configure program templates and applicant field schemas";
             case POLICIES -> "Configure governance criteria, version snapshots, and threshold rules";
             case EVALUATION -> "Evaluate candidate pool against governance policies with complete explainability";
             case COMPARISON -> "Simulate policy shifts and inspect candidate decision flips between version epochs";

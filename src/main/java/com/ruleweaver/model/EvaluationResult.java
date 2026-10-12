@@ -17,7 +17,9 @@ public class EvaluationResult {
     private String applicantName;
     private String policyId;
     private String policyName;
+    private String policyVersionId;
     private int policyVersionNumber;
+    private String evaluationRunId;
     private boolean overallDecision;
     private List<ConditionResult> conditionResults;
     private LocalDateTime evaluatedOn;
@@ -78,12 +80,28 @@ public class EvaluationResult {
         this.policyName = policyName;
     }
 
+    public String getPolicyVersionId() {
+        return policyVersionId;
+    }
+
+    public void setPolicyVersionId(String policyVersionId) {
+        this.policyVersionId = policyVersionId;
+    }
+
     public int getPolicyVersionNumber() {
         return policyVersionNumber;
     }
 
     public void setPolicyVersionNumber(int policyVersionNumber) {
         this.policyVersionNumber = policyVersionNumber;
+    }
+
+    public String getEvaluationRunId() {
+        return evaluationRunId;
+    }
+
+    public void setEvaluationRunId(String evaluationRunId) {
+        this.evaluationRunId = evaluationRunId;
     }
 
     public boolean isOverallDecision() {

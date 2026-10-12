@@ -102,6 +102,21 @@ public class Applicant {
         return Collections.unmodifiableMap(customAttributes);
     }
 
+    public Object getFieldValue(String fieldName) {
+        if (fieldName == null) {
+            return null;
+        }
+        return switch (fieldName) {
+            case "id" -> id;
+            case "name" -> name;
+            case "email" -> email;
+            case "gpa" -> gpa;
+            case "interviewScore", "interview_score", "interview" -> interviewScore;
+            case "skills" -> getSkills();
+            default -> customAttributes.get(fieldName);
+        };
+    }
+
     public void setCustomAttribute(String key, Object value) {
         this.customAttributes.put(key, value);
     }

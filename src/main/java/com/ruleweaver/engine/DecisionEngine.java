@@ -37,9 +37,14 @@ public class DecisionEngine {
                 applicant.getId(),
                 applicant.getName(),
                 policyVersion.getPolicyId(),
-                policyVersion.getDescription(),
+                null,
                 policyVersion.getVersionNumber()
         );
+        String versionId = policyVersion.getId();
+        if (versionId == null || versionId.isBlank()) {
+            versionId = policyVersion.getPolicyId() + "_v" + policyVersion.getVersionNumber();
+        }
+        result.setPolicyVersionId(versionId);
         result.setId(UUID.randomUUID().toString());
 
         List<Condition> conditions = policyVersion.getConditions();

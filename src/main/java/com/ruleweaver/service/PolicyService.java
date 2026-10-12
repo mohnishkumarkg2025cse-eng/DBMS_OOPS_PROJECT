@@ -20,6 +20,7 @@ public class PolicyService {
     private final Object evaluationResultRepository;
     private final DecisionEngine decisionEngine;
     private final ComparisonService comparisonService;
+    private ProgramService programService;
 
     public PolicyService(PolicyRepository policyRepository,
                          Object evaluationResultRepository,
@@ -39,7 +40,16 @@ public class PolicyService {
     }
 
     public Policy createPolicy(String id, String name, String description, List<Condition> conditions) {
+        return createPolicy(id, name, description, null, conditions);
+    }
+
+    public Policy createPolicy(String id, String name, String description, String programId,
+                               List<Condition> conditions) {
+        if (programId != null) {
+            requireProgramService().validateConditions(programId, conditions);
+        }
         Policy policy = new Policy(id, name, description);
+        policy.setProgramId(programId);
         policy.setActiveVersionNumber(1);
         savePolicy(policy);
         PolicyVersion initialVersion = new PolicyVersion(id + "_v1", id, 1, description, conditions);
@@ -49,6 +59,9 @@ public class PolicyService {
 
     public PolicyVersion createNewVersion(String policyId, String description, List<Condition> conditions) {
         Policy policy = findPolicyById(policyId);
+        if (policy.getProgramId() != null) {
+            requireProgramService().validateConditions(policy.getProgramId(), conditions);
+        }
         int nextVersionNumber = policy.getLatestVersion()
                 .map(version -> version.getVersionNumber() + 1)
                 .orElse(1);
@@ -70,13 +83,30 @@ public class PolicyService {
         PolicyVersion version = policy.getVersion(versionNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Version not found: " + versionNumber));
 
+        if (policy.getProgramId() != null) {
+            requireProgramService().validateConditions(policy.getProgramId(), version.getConditions());
+        }
         List<Applicant> pool = applicants == null ? List.of() : applicants;
+        String evaluationRunId = java.util.UUID.randomUUID().toString();
         List<EvaluationResult> results = new java.util.ArrayList<>(pool.size());
         for (int i = 0; i < pool.size(); i++) {
             if (cancelled.getAsBoolean()) {
                 throw new CancellationException("Evaluation cancelled.");
             }
-            results.addAll(evaluateApplicantsInternal(List.of(pool.get(i)), version));
+            if (policy.getProgramId() != null) {
+                List<String> validationErrors = requireProgramService()
+                        .validateApplicant(policy.getProgramId(), pool.get(i));
+                if (!validationErrors.isEmpty()) {
+                    throw new IllegalArgumentException("Applicant " + pool.get(i).getId() + ": "
+                            + String.join(" ", validationErrors));
+                }
+            }
+            List<EvaluationResult> applicantResults = evaluateApplicantsInternal(List.of(pool.get(i)), version);
+            applicantResults.forEach(result -> {
+                result.setPolicyName(policy.getName());
+                result.setEvaluationRunId(evaluationRunId);
+            });
+            results.addAll(applicantResults);
             progress.accept(i + 1);
         }
         if (cancelled.getAsBoolean()) {
@@ -84,6 +114,17 @@ public class PolicyService {
         }
         persistEvaluationResults(results);
         return results;
+    }
+
+    public void setProgramService(ProgramService programService) {
+        this.programService = programService;
+    }
+
+    private ProgramService requireProgramService() {
+        if (programService == null) {
+            throw new IllegalStateException("Program validation is not configured.");
+        }
+        return programService;
     }
 
     public Policy setActiveVersion(String policyId, int versionNumber) {

@@ -1,7 +1,9 @@
 package com.ruleweaver.repository;
 
+import com.ruleweaver.engine.ConditionDocumentMapper;
 import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +22,13 @@ public class InMemoryPolicyRepository implements PolicyRepository {
         if (policy.getId() == null || policy.getId().isBlank()) {
             policy.setId(UUID.randomUUID().toString());
         }
-        storage.put(policy.getId(), policy);
-        return policy;
+        Policy existing = storage.get(policy.getId());
+        Policy stored = copyPolicy(policy);
+        if (existing != null) {
+            stored.setVersions(copyVersions(existing.getVersions()));
+        }
+        storage.put(stored.getId(), stored);
+        return copyPolicy(stored);
     }
 
     @Override
@@ -29,12 +36,12 @@ public class InMemoryPolicyRepository implements PolicyRepository {
         if (id == null || id.isBlank()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(storage.get(id));
+        return Optional.ofNullable(storage.get(id)).map(InMemoryPolicyRepository::copyPolicy);
     }
 
     @Override
     public List<Policy> findAll() {
-        return new ArrayList<>(storage.values());
+        return storage.values().stream().map(InMemoryPolicyRepository::copyPolicy).toList();
     }
 
     @Override
@@ -42,7 +49,14 @@ public class InMemoryPolicyRepository implements PolicyRepository {
         if (id == null || id.isBlank()) {
             return false;
         }
-        return storage.remove(id) != null;
+        Policy policy = storage.get(id);
+        if (policy == null) {
+            return false;
+        }
+        Policy archived = copyPolicy(policy);
+        archived.setArchived(true);
+        storage.put(id, archived);
+        return true;
     }
 
     @Override
@@ -55,7 +69,7 @@ public class InMemoryPolicyRepository implements PolicyRepository {
         if (policy == null) {
             return Optional.empty();
         }
-        return policy.getVersion(versionNumber);
+        return policy.getVersion(versionNumber).map(InMemoryPolicyRepository::copyVersion);
     }
 
     @Override
@@ -68,7 +82,7 @@ public class InMemoryPolicyRepository implements PolicyRepository {
         if (policy == null) {
             return Optional.empty();
         }
-        return policy.getLatestVersion();
+        return policy.getLatestVersion().map(InMemoryPolicyRepository::copyVersion);
     }
 
     @Override
@@ -92,7 +106,35 @@ public class InMemoryPolicyRepository implements PolicyRepository {
 
         version.setPolicyId(policyId);
         List<PolicyVersion> versions = new ArrayList<>(policy.getVersions());
-        versions.add(version);
+        versions.add(copyVersion(version));
         policy.setVersions(versions);
+    }
+
+    private static Policy copyPolicy(Policy source) {
+        Policy copy = new Policy(source.getId(), source.getName(), source.getDescription());
+        copy.setCategory(source.getCategory());
+        copy.setProgramId(source.getProgramId());
+        copy.setActiveVersionNumber(source.getPersistedActiveVersionNumber());
+        copy.setArchived(source.isArchived());
+        copy.setVersions(copyVersions(source.getVersions()));
+        return copy;
+    }
+
+    private static List<PolicyVersion> copyVersions(List<PolicyVersion> versions) {
+        return versions.stream().map(InMemoryPolicyRepository::copyVersion).toList();
+    }
+
+    private static PolicyVersion copyVersion(PolicyVersion version) {
+        PolicyVersion copy = new PolicyVersion(
+                version.getId(),
+                version.getPolicyId(),
+                version.getVersionNumber(),
+                version.getDescription(),
+                version.getConditions().stream()
+                        .map(ConditionDocumentMapper::toDocument)
+                        .map(ConditionDocumentMapper::fromDocument)
+                        .toList());
+        copy.setCreatedAt(version.getCreatedAt());
+        return copy;
     }
 }

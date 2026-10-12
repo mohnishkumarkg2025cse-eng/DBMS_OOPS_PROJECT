@@ -2,6 +2,7 @@ package com.ruleweaver.engine;
 
 import com.ruleweaver.model.Applicant;
 import com.ruleweaver.model.ConditionResult;
+import com.ruleweaver.model.FieldOperator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,5 +68,21 @@ class ConditionDocumentMapperTest {
 
         assertInstanceOf(CompositeCondition.class, restored);
         assertEquals(LogicalOperator.AND, ((CompositeCondition) restored).getLogicalOperator());
+    }
+
+    @Test
+    void roundTripsTypedCustomFieldConditions() {
+        Condition condition = new FieldCondition("portfolioScore", FieldOperator.GREATER_THAN_OR_EQUAL, 80);
+
+        Condition restored = ConditionDocumentMapper.fromDocument(ConditionDocumentMapper.toDocument(condition));
+
+        assertInstanceOf(FieldCondition.class, restored);
+        FieldCondition field = (FieldCondition) restored;
+        assertEquals("portfolioScore", field.getFieldKey());
+        assertEquals(FieldOperator.GREATER_THAN_OR_EQUAL, field.getOperator());
+        assertEquals(80, field.getExpectedValue());
+        Applicant applicant = new Applicant("A-4", "Custom Field Applicant", 8.0, 70, List.of());
+        applicant.setCustomAttribute("portfolioScore", 90);
+        assertTrue(restored.test(applicant));
     }
 }

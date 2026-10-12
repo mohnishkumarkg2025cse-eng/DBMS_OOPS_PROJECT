@@ -14,6 +14,7 @@ public class ApplicantDocumentMapperTest {
     public void testMappingToAndFromDocument() {
         Applicant applicant = new Applicant("APP-999", "David Test", 8.45, 82, Arrays.asList("Java", "PostgreSQL"));
         applicant.setEmail("david.test@example.com");
+        applicant.setCustomAttribute("portfolioScore", 91.5);
 
         Document doc = ApplicantDocumentMapper.toDocument(applicant);
         assertNotNull(doc);
@@ -22,6 +23,7 @@ public class ApplicantDocumentMapperTest {
         assertEquals(8.45, doc.getDouble("gpa"));
         assertEquals(82, doc.getInteger("interviewScore"));
         assertEquals("ACTIVE", doc.getString("status"));
+        assertEquals("APP-999", doc.getString("_id"));
         assertEquals(Arrays.asList("Java", "PostgreSQL"), doc.getList("skills", String.class));
 
         Applicant mappedBack = ApplicantDocumentMapper.toApplicant(doc);
@@ -31,5 +33,6 @@ public class ApplicantDocumentMapperTest {
         assertEquals(8.45, mappedBack.getGpa(), 0.001);
         assertEquals(82, mappedBack.getInterviewScore());
         assertEquals(Arrays.asList("Java", "PostgreSQL"), mappedBack.getSkills());
+        assertEquals(91.5, mappedBack.getCustomAttributes().get("portfolioScore"));
     }
 }
