@@ -4,9 +4,11 @@ import com.ruleweaver.config.MongoConfig;
 import com.ruleweaver.model.*;
 import com.ruleweaver.service.WhatIfSimulator;
 import com.ruleweaver.service.DashboardAnalytics;
+import com.ruleweaver.service.PipelineCalculator;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.adapter.ApplicantDocumentMapper;
 import com.ruleweaver.ui.components.*;
+import com.ruleweaver.ui.shell.Sidebar;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -36,7 +38,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Priority;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.scene.layout.*;
-import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
 import java.util.ArrayList;
@@ -46,9 +47,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Screen 4: Executive Overview Dashboard with live KPI cards, animated charts,
@@ -57,18 +61,18 @@ import java.time.format.DateTimeFormatter;
 public class DashboardView implements BaseView {
 
     private static final double SIDEBAR_WIDTH = 240;
+    private static final int POLICY_HEALTH_ROW_LIMIT = 6;
+    private static final int PIPELINE_ATTENTION_LIMIT = 8;
     private final StackPane rootPane = new StackPane();
     private final ScrollPane scrollPane = new ScrollPane();
     private final VBox contentBox = new VBox(24);
     private final GridPane contentGrid = new GridPane();
 
-    // KPI Cards
-    private KpiCard totalCard;
-    private KpiCard eligibleCard;
-    private KpiCard rejectedCard;
-    private KpiCard nearMissCard;
-    private KpiCard passRateCard;
-    private KpiCard impactCard;
+    // Insight Center KPI cards
+    private KpiCard programsCard;
+    private KpiCard applicantsCard;
+    private KpiCard decisionsCard;
+    private KpiCard activePoliciesCard;
     private final StackPane kpiSlot = new StackPane();
     private GridPane kpiGrid;
     private VBox kpiContent;
@@ -78,7 +82,10 @@ public class DashboardView implements BaseView {
     private VBox attentionWidget;
 
     // Charts
-    private final PieChart pieChart = new PieChart();
+    private final CategoryAxis approvalTrendXAxis = new CategoryAxis();
+    private final NumberAxis approvalTrendYAxis = new NumberAxis();
+    private final LineChart<String, Number> approvalTrendChart =
+            new LineChart<>(approvalTrendXAxis, approvalTrendYAxis);
     private CategoryAxis barYAxis;
     private NumberAxis barXAxis;
     private BarChart<Number, String> barChart;
@@ -87,16 +94,12 @@ public class DashboardView implements BaseView {
     private final StackPane barCard = new StackPane();
     private final StackPane recentEvaluationsSlot = new StackPane();
     private final StackPane needsAttentionSlot = new StackPane();
+    private final StackPane policyHealthRowsSlot = new StackPane();
+    private final StackPane pipelineSummarySlot = new StackPane();
+    private final StackPane pipelineAttentionSlot = new StackPane();
     private final StackPane whatIfResultsSlot = new StackPane();
-    private final StackPane donutCenter = new StackPane();
-    private StackPane pieVisual;
-    private final Circle donutHole = new Circle(52);
-    private final Label donutCenterValue = new Label("—");
-    private final Label donutCenterLabel = new Label("PASS RATE");
     private final TableView<EvaluationResult> recentEvaluations = new TableView<>();
     private final VBox needsAttentionList = new VBox(8);
-    private final Label sampleSummaryLabel = new Label();
-    private final Label baselineSummaryLabel = new Label();
     private final Label ruleSampleSummaryLabel = new Label();
     private final DateTimeFormatter updatedFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a");
     private final Map<StackPane, List<Timeline>> shimmerAnimations = new HashMap<>();
@@ -121,6 +124,7 @@ public class DashboardView implements BaseView {
     private final Label lastUpdatedLabel = new Label("Not updated yet");
     private final Button runWhatIfButton = new Button("Run What-if");
     private final Button cancelWhatIfButton = new Button("Cancel Simulation");
+    private final Button pipelineEvaluateButton = new Button("Evaluate");
     private final Button saveWhatIfButton = new Button("Save as New Version");
     private final Button refreshButton = new Button();
     private final Button evaluateAllButton = new Button("Evaluate All");
@@ -129,9 +133,26 @@ public class DashboardView implements BaseView {
     private final WhatIfSimulator whatIfSimulator;
     private final DashboardAnalytics dashboardAnalytics = new DashboardAnalytics();
     private final BiConsumer<Policy, PolicyVersion> openNewVersionDraft;
+    private final Consumer<Sidebar.Destination> openDestination;
+    private final Runnable openAddApplicant;
+    private final PipelineCalculator pipelineCalculator = new PipelineCalculator();
+    private final Map<PipelineCacheKey, PipelineCache> pipelineCache = new ConcurrentHashMap<>();
+    private VBox qualityWidget;
+    private VBox policyHealthWidget;
+    private VBox pipelineWidget;
+    private GridPane pipelineStageGrid;
+    private VBox quickAccessWidget;
+    private final List<Label> policyHealthMetricValues = new ArrayList<>();
+    private final List<Node> pipelineStageNodes = new ArrayList<>();
+    private final List<Label> pipelineStageArrows = new ArrayList<>();
+    private final List<Label> pipelineStageValues = new ArrayList<>();
+    private final List<Label> pipelineStageDescriptions = new ArrayList<>();
+    private final List<ProgressBar> pipelineStageMeters = new ArrayList<>();
     private WhatIfSimulator.SimulationResult lastSimulation;
     private Task<List<EvaluationResult>> activeEvaluationTask;
     private Task<DashboardSnapshot> activeDashboardTask;
+    private Task<PipelineCalculator.PipelineSummary> activePipelineSummaryTask;
+    private Task<List<PipelineCalculator.AttentionApplicant>> activePipelineAttentionTask;
     private Task<WhatIfSimulator.SimulationResult> activeWhatIfTask;
     private boolean syncingPolicyChoice;
     private boolean syncingFilters;
@@ -140,20 +161,37 @@ public class DashboardView implements BaseView {
     private int responsiveColumnCount;
     private long refreshGeneration;
     private long whatIfGeneration;
+    private long pipelineGeneration;
+    private PipelineCacheKey pendingPipelineKey;
+    private PipelineCalculator.PipelineSummary pendingPipelineSummary;
+    private List<PipelineCalculator.AttentionApplicant> pendingPipelineAttention;
 
     public DashboardView() {
         this((policy, version) -> { });
     }
 
     public DashboardView(BiConsumer<Policy, PolicyVersion> openNewVersionDraft) {
+        this(openNewVersionDraft, destination -> { });
+    }
+
+    public DashboardView(BiConsumer<Policy, PolicyVersion> openNewVersionDraft,
+                         Consumer<Sidebar.Destination> openDestination) {
+        this(openNewVersionDraft, openDestination, () -> { });
+    }
+
+    public DashboardView(BiConsumer<Policy, PolicyVersion> openNewVersionDraft,
+                         Consumer<Sidebar.Destination> openDestination,
+                         Runnable openAddApplicant) {
         this.openNewVersionDraft = openNewVersionDraft;
+        this.openDestination = openDestination;
+        this.openAddApplicant = openAddApplicant;
         this.whatIfSimulator = new WhatIfSimulator(AppContext.getInstance().getDecisionEngine());
         buildUI();
     }
 
     private void buildUI() {
         rootPane.getStyleClass().add("page-root");
-        contentBox.getStyleClass().addAll("dash-page", "page-root");
+        contentBox.getStyleClass().addAll("dash-page", "insight-center-page", "page-root");
         contentBox.setMinWidth(0);
         contentBox.setMaxWidth(Double.MAX_VALUE);
         contentGrid.setHgap(24);
@@ -166,7 +204,11 @@ public class DashboardView implements BaseView {
         FlowPane filters = createFiltersRow();
         createKpiRow();
         createChartsRow();
+        policyHealthWidget = createPolicyHealthCard();
+        pipelineWidget = createDecisionPipelineCard();
         VBox recentCard = createRecentEvaluationsCard();
+        qualityWidget = createDataQualityCard();
+        quickAccessWidget = createQuickAccessCard();
         VBox attentionCard = createNeedsAttentionCard();
         VBox whatIfCard = createWhatIfCard();
         layoutDashboard(header, filters, recentCard, attentionCard, whatIfCard, 0);
@@ -181,20 +223,31 @@ public class DashboardView implements BaseView {
 
         rootPane.getChildren().add(scrollPane);
         AppContext ctx = AppContext.getInstance();
-        ctx.resultsChangedProperty().addListener((observable, oldValue, newValue) -> refreshDashboard());
+        ctx.resultsChangedProperty().addListener((observable, oldValue, newValue) -> {
+            pipelineCache.clear();
+            refreshDashboard();
+            refreshPipeline();
+        });
+        ctx.getApplicants().addListener((javafx.collections.ListChangeListener<Applicant>) change -> {
+            pipelineCache.clear();
+            refreshPipeline();
+        });
         ctx.selectedPolicyProperty().addListener((observable, oldValue, newValue) -> {
             syncHeaderPolicy(newValue);
             refreshDashboard();
+            refreshPipeline();
         });
         ctx.selectedVersionProperty().addListener((observable, oldValue, newValue) -> {
             syncVersionFilter(newValue);
             refreshDashboard();
+            refreshPipeline();
         });
         ctx.reducedMotionProperty().addListener((observable, oldValue, newValue) -> {
-            pieChart.setAnimated(!newValue);
+            approvalTrendChart.setAnimated(!newValue);
             if (barChart != null) barChart.setAnimated(!newValue);
             updateShimmerAnimations(newValue);
         });
+        ctx.mongoOnlineProperty().addListener((observable, oldValue, connected) -> refreshPipeline());
         rootPane.widthProperty().addListener((observable, oldWidth, width) ->
                 layoutDashboard(header, filters, recentCard, attentionCard, whatIfCard, width.doubleValue()));
         scrollPane.viewportBoundsProperty().addListener((observable, oldBounds, bounds) ->
@@ -784,10 +837,10 @@ public class DashboardView implements BaseView {
         header.setAlignment(Pos.CENTER_LEFT);
         VBox titleBox = new VBox(8);
         titleBox.setMinWidth(0);
-        Label title = new Label("System Dashboard");
+        Label title = new Label("Insight Center");
         title.setMinWidth(0);
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Decision outcomes, criteria compliance, and version impact");
+        Label subtitle = new Label("A live overview of your programs, applicants, and policy decisions");
         subtitle.setMinWidth(0);
         subtitle.setWrapText(true);
         subtitle.getStyleClass().add("page-subtitle");
@@ -843,7 +896,11 @@ public class DashboardView implements BaseView {
         configureRunFilter();
         configureDecisionFilter();
         programFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (!syncingFilters) refreshDashboard();
+            if (!syncingFilters) {
+                pipelineCache.clear();
+                refreshDashboard();
+                refreshPipeline();
+            }
         });
         versionFilter.valueProperty().addListener((observable, oldValue, newValue) -> {
             if (syncingFilters) return;
@@ -963,30 +1020,27 @@ public class DashboardView implements BaseView {
     }
 
     private void createKpiRow() {
-        totalCard = new KpiCard("EVALUATED APPLICANTS", "0", "Unique per policy", Icons.APPLICANTS, "#89b4fa");
-        eligibleCard = new KpiCard("ELIGIBLE", "0", "0 / 0 evaluated", Icons.CHECK, "#a6e3a1");
-        rejectedCard = new KpiCard("REJECTED", "0", "0 / 0 evaluated", Icons.CLOSE, "#f38ba8");
-        nearMissCard = new KpiCard("NEAR-MISSES", "0", "One recorded rule failure", Icons.SPARKLES, "#f9e2af");
-        passRateCard = new KpiCard("PASS RATE", "N/A", "Eligible / evaluated", Icons.SPARKLES, "#cba6f7");
-        impactCard = new KpiCard("BASELINE CHANGE", "N/A", "Prior saved version", Icons.COMPARISON, "#f9e2af");
+        programsCard = new KpiCard("TOTAL PROGRAMS", "—", "Available program records",
+                Icons.POLICIES, "#89b4fa");
+        applicantsCard = new KpiCard("TOTAL APPLICANTS", "—", "Applicant records",
+                Icons.APPLICANTS, "#74c7ec");
+        decisionsCard = new KpiCard("DECISIONS MADE", "—", "Distinct evaluated applicants",
+                Icons.EVALUATION, "#a6e3a1");
+        activePoliciesCard = new KpiCard("ACTIVE POLICIES", "—", "Published policy records",
+                Icons.CHECK, "#f9e2af");
         kpiGrid = new GridPane();
         kpiGrid.setHgap(16);
         kpiGrid.setVgap(16);
-        sampleSummaryLabel.getStyleClass().add("page-subtitle");
-        baselineSummaryLabel.getStyleClass().add("page-subtitle");
-        baselineSummaryLabel.setWrapText(true);
-        kpiContent = new VBox(12, kpiGrid, sampleSummaryLabel, baselineSummaryLabel);
+        kpiContent = new VBox(kpiGrid);
         kpiSlot.getStyleClass().add("widget-slot");
         kpiSlot.getChildren().setAll(kpiContent);
         layoutKpiCards(0);
     }
 
     private void layoutKpiCards(double width) {
-        double screenWidth = width + SIDEBAR_WIDTH;
-        int columns = screenWidth >= 1100 ? 3 : screenWidth >= 850 ? 2 : 1;
+        int columns = width >= 760 ? 4 : width >= 480 ? 2 : 1;
         kpiGrid.getChildren().clear();
-        List<KpiCard> cards = List.of(totalCard, eligibleCard, rejectedCard,
-                nearMissCard, passRateCard, impactCard);
+        List<KpiCard> cards = List.of(programsCard, applicantsCard, decisionsCard, activePoliciesCard);
         for (int i = 0; i < cards.size(); i++) {
             int row = i / columns;
             int column = i % columns;
@@ -1008,26 +1062,21 @@ public class DashboardView implements BaseView {
     private void createChartsRow() {
         pieWidget = new VBox(16);
         pieWidget.getStyleClass().addAll("card", "dashboard-card");
-        Label pieTitle = new Label("Decision outcome");
+        Label pieTitle = new Label("Approval / Rejection Trends");
         pieTitle.getStyleClass().add("dashboard-section-title");
-        pieChart.setLegendVisible(true);
-        pieChart.setLabelsVisible(false);
-        pieChart.setAnimated(!AppContext.getInstance().reducedMotionProperty().get());
-        pieChart.setPrefHeight(300);
-        pieChart.setMinHeight(250);
-        donutHole.getStyleClass().add("donut-hole");
-        VBox centerLabels = new VBox(2, donutCenterValue, donutCenterLabel);
-        centerLabels.setAlignment(Pos.CENTER);
-        donutCenterValue.getStyleClass().add("donut-center-value");
-        donutCenterLabel.getStyleClass().add("donut-center-label");
-        donutCenter.setMouseTransparent(true);
-        donutCenter.getChildren().setAll(donutHole, centerLabels);
-        pieVisual = new StackPane(pieChart, donutCenter);
-        pieVisual.setMinHeight(280);
+        Label trendSubtitle = new Label("Saved decisions · Eligible / rejected · Last 30 days");
+        trendSubtitle.getStyleClass().add("page-subtitle");
+        approvalTrendXAxis.setLabel("Week of");
+        approvalTrendYAxis.setLabel("Decisions");
+        approvalTrendChart.setLegendVisible(true);
+        approvalTrendChart.setCreateSymbols(true);
+        approvalTrendChart.setAnimated(!AppContext.getInstance().reducedMotionProperty().get());
+        approvalTrendChart.setPrefHeight(300);
+        approvalTrendChart.setMinHeight(250);
         chartCard.getStyleClass().add("widget-slot");
         chartCard.setMinHeight(280);
-        chartCard.getChildren().setAll(pieVisual);
-        pieWidget.getChildren().addAll(pieTitle, chartCard);
+        chartCard.getChildren().setAll(approvalTrendChart);
+        pieWidget.getChildren().addAll(pieTitle, trendSubtitle, chartCard);
         VBox.setVgrow(chartCard, Priority.ALWAYS);
 
         barWidget = new VBox(16);
@@ -1052,18 +1101,748 @@ public class DashboardView implements BaseView {
         VBox.setVgrow(barCard, Priority.ALWAYS);
     }
 
+    private VBox createPolicyHealthCard() {
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", "dashboard-card", "policy-health-card");
+
+        Label title = new Label("Policy Health");
+        title.getStyleClass().add("dashboard-section-title");
+        Label subtitle = new Label("Lifecycle and version status from saved policy records.");
+        subtitle.getStyleClass().add("page-subtitle");
+        Button viewAll = new Button("View all policies");
+        viewAll.getStyleClass().add("link-action");
+        viewAll.setOnAction(event -> navigateTo(Sidebar.Destination.POLICIES));
+        HBox titleRow = new HBox(12, title, viewAll);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(title, Priority.ALWAYS);
+
+        GridPane summary = new GridPane();
+        summary.setHgap(12);
+        summary.setVgap(12);
+        summary.setMinWidth(0);
+        List<VBox> metrics = List.of(
+                policyHealthMetric("ACTIVE", "policy-health-active", "Non-archived with a saved version"),
+                policyHealthMetric("DRAFT", "policy-health-draft", "Non-archived without a saved version"),
+                policyHealthMetric("NEEDS ATTENTION", "policy-health-attention",
+                        "Validation status unavailable"),
+                policyHealthMetric("VERSIONED", "policy-health-versioned", "Policies with saved versions"));
+        for (int index = 0; index < metrics.size(); index++) {
+            summary.add(metrics.get(index), index, 0);
+            GridPane.setHgrow(metrics.get(index), Priority.ALWAYS);
+            GridPane.setFillWidth(metrics.get(index), true);
+            ColumnConstraints column = new ColumnConstraints();
+            column.setPercentWidth(25);
+            column.setHgrow(Priority.ALWAYS);
+            summary.getColumnConstraints().add(column);
+        }
+
+        policyHealthRowsSlot.getStyleClass().add("widget-slot");
+        policyHealthRowsSlot.setMinHeight(150);
+        showSkeleton(policyHealthRowsSlot, 3);
+        card.getChildren().addAll(titleRow, subtitle, summary, policyHealthRowsSlot);
+        return card;
+    }
+
+    private VBox policyHealthMetric(String title, String accentStyle, String description) {
+        VBox metric = new VBox(6);
+        metric.getStyleClass().add("policy-health-metric");
+        Label heading = new Label(title);
+        heading.getStyleClass().addAll("policy-health-metric-title", accentStyle);
+        Label value = new Label("—");
+        value.getStyleClass().addAll("policy-health-metric-value", accentStyle);
+        Label detail = new Label(description);
+        detail.getStyleClass().add("policy-health-metric-detail");
+        detail.setWrapText(true);
+        metric.getChildren().addAll(heading, value, detail);
+        policyHealthMetricValues.add(value);
+        return metric;
+    }
+
+    private void renderPolicyHealth(List<Policy> policies) {
+        long activeCount = policies.stream()
+                .filter(policy -> !policy.isArchived() && !policy.getVersions().isEmpty()).count();
+        long draftCount = policies.stream()
+                .filter(policy -> !policy.isArchived() && policy.getVersions().isEmpty()).count();
+        long versionedCount = policies.stream()
+                .filter(policy -> !policy.getVersions().isEmpty()).count();
+        policyHealthMetricValues.get(0).setText(Long.toString(activeCount));
+        policyHealthMetricValues.get(1).setText(Long.toString(draftCount));
+        policyHealthMetricValues.get(2).setText("—");
+        policyHealthMetricValues.get(3).setText(Long.toString(versionedCount));
+
+        stopShimmer(policyHealthRowsSlot);
+        if (policies.isEmpty()) {
+            policyHealthRowsSlot.getChildren().setAll(new EmptyState(
+                    Icons.POLICIES, "No policies yet",
+                    "Saved policy records will appear here with their lifecycle and version status.",
+                    null, null));
+            return;
+        }
+
+        List<Policy> ordered = policies.stream()
+                .sorted(Comparator.comparing(this::policyLastUpdated,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(policy -> Objects.requireNonNullElse(policy.getName(), "")))
+                .limit(POLICY_HEALTH_ROW_LIMIT)
+                .toList();
+        VBox rows = new VBox(6);
+        rows.getStyleClass().add("policy-health-rows");
+        rows.getChildren().add(policyHealthTableHeader());
+        for (Policy policy : ordered) {
+            rows.getChildren().add(policyHealthRow(policy));
+        }
+        policyHealthRowsSlot.getChildren().setAll(rows);
+    }
+
+    private GridPane policyHealthTableHeader() {
+        GridPane header = new GridPane();
+        header.getStyleClass().add("policy-health-table-header");
+        addPolicyHealthColumnConstraints(header);
+        List<String> columns = List.of(
+                "POLICY", "STATUS", "CURRENT VERSION", "LAST UPDATED", "VERSION DETAILS");
+        for (int column = 0; column < columns.size(); column++) {
+            Label label = new Label(columns.get(column));
+            label.getStyleClass().add("policy-health-column-title");
+            label.setMinWidth(0);
+            header.add(label, column, 0);
+        }
+        return header;
+    }
+
+    private Button policyHealthRow(Policy policy) {
+        GridPane row = new GridPane();
+        row.getStyleClass().add("policy-health-row-content");
+        addPolicyHealthColumnConstraints(row);
+
+        VBox identity = new VBox(3);
+        Label name = new Label(Objects.requireNonNullElse(policy.getName(), "Unnamed policy"));
+        name.getStyleClass().add("policy-health-name");
+        name.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        name.setMaxWidth(Double.MAX_VALUE);
+        Label id = new Label(Objects.requireNonNullElse(policy.getId(), "ID unavailable"));
+        id.getStyleClass().add("policy-health-id");
+        id.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        id.setMaxWidth(Double.MAX_VALUE);
+        identity.getChildren().addAll(name, id);
+        identity.setMinWidth(0);
+        row.add(identity, 0, 0);
+
+        boolean versioned = !policy.getVersions().isEmpty();
+        StatusBadge status = policy.isArchived()
+                ? StatusBadge.fail("Archived")
+                : versioned ? StatusBadge.pass("Active") : StatusBadge.warning("Draft");
+        row.add(status, 1, 0);
+
+        int currentVersionNumber = versioned ? policy.getActiveVersionNumber() : 0;
+        Label version = new Label(currentVersionNumber > 0 ? "v" + currentVersionNumber : "—");
+        version.getStyleClass().add("policy-health-cell");
+        row.add(version, 2, 0);
+
+        LocalDateTime lastUpdated = policyLastUpdated(policy);
+        Label updated = new Label(lastUpdated == null ? versioned ? "Unavailable" : "—"
+                : DateTimeFormatter.ofPattern("MMM d, yyyy").format(lastUpdated));
+        updated.getStyleClass().add("policy-health-cell");
+        row.add(updated, 3, 0);
+
+        int versionCount = policy.getVersions().size();
+        Label details = new Label(versionCount > 0
+                ? versionCount + " saved version" + (versionCount == 1 ? "" : "s")
+                : "No saved version");
+        details.getStyleClass().add("policy-health-cell");
+        details.setWrapText(true);
+        row.add(details, 4, 0);
+
+        Button button = new Button();
+        button.getStyleClass().add("policy-health-row");
+        button.setGraphic(row);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setMinWidth(0);
+        button.setAccessibleText("Open policy " + Objects.requireNonNullElse(policy.getName(), ""));
+        button.setOnAction(event -> {
+            AppContext ctx = AppContext.getInstance();
+            ctx.selectedPolicyProperty().set(policy);
+            ctx.selectedVersionProperty().set(versioned
+                    ? policy.getVersion(currentVersionNumber)
+                            .orElseGet(() -> policy.getLatestVersion().orElse(null))
+                    : null);
+            navigateTo(Sidebar.Destination.POLICIES);
+        });
+        return button;
+    }
+
+    private static void addPolicyHealthColumnConstraints(GridPane grid) {
+        double[] widths = {30, 16, 15, 17, 22};
+        for (double width : widths) {
+            ColumnConstraints column = new ColumnConstraints();
+            column.setPercentWidth(width);
+            column.setHgrow(Priority.ALWAYS);
+            column.setFillWidth(true);
+            grid.getColumnConstraints().add(column);
+        }
+    }
+
+    private LocalDateTime policyLastUpdated(Policy policy) {
+        return policy.getVersions().stream()
+                .map(PolicyVersion::getCreatedAt)
+                .filter(Objects::nonNull)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+    }
+
+    private VBox createDecisionPipelineCard() {
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", "dashboard-card", "decision-pipeline-card");
+
+        Label title = new Label("Decision Pipeline");
+        title.getStyleClass().add("dashboard-section-title");
+        Label subtitle = new Label("Applicant progress for the selected policy version.");
+        subtitle.getStyleClass().add("page-subtitle");
+        Label offlineState = new Label("OFFLINE · Locally available records");
+        offlineState.getStyleClass().add("pipeline-offline-state");
+        offlineState.setTooltip(new Tooltip(
+                "MongoDB is disconnected. Values reflect records currently available in local application state."));
+        offlineState.setVisible(false);
+        offlineState.setManaged(false);
+        HBox heading = new HBox(12, title, offlineState);
+        heading.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(title, Priority.ALWAYS);
+
+        pipelineStageGrid = new GridPane();
+        pipelineStageGrid.setHgap(8);
+        pipelineStageGrid.setVgap(12);
+        pipelineStageGrid.setMinWidth(0);
+        createPipelineStages();
+        layoutPipelineStages(0);
+        pipelineStageGrid.widthProperty().addListener((observable, oldWidth, width) ->
+                layoutPipelineStages(width.doubleValue()));
+        pipelineSummarySlot.getStyleClass().add("widget-slot");
+        showSkeleton(pipelineSummarySlot, 6);
+
+        Label attentionTitle = new Label("Needs Attention");
+        attentionTitle.getStyleClass().add("dashboard-section-title");
+        Button viewApplicants = new Button("View all");
+        viewApplicants.getStyleClass().add("link-action");
+        viewApplicants.setTooltip(new Tooltip(
+                "Open all applicants. The Applicants screen does not currently support an awaiting-evaluation filter."));
+        viewApplicants.setOnAction(event -> navigateTo(Sidebar.Destination.APPLICANTS));
+        pipelineEvaluateButton.getStyleClass().add("btn-secondary");
+        pipelineEvaluateButton.setTooltip(new Tooltip("Open the existing evaluation workflow for the selected policy."));
+        pipelineEvaluateButton.setDisable(true);
+        pipelineEvaluateButton.setOnAction(event -> navigateTo(Sidebar.Destination.EVALUATION));
+        HBox attentionHeading = new HBox(10, attentionTitle, pipelineEvaluateButton, viewApplicants);
+        attentionHeading.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(attentionTitle, Priority.ALWAYS);
+        pipelineAttentionSlot.getStyleClass().add("widget-slot");
+        pipelineAttentionSlot.setMinHeight(120);
+        showSkeleton(pipelineAttentionSlot, 3);
+
+        VBox attentionPanel = new VBox(12, attentionHeading, pipelineAttentionSlot);
+        attentionPanel.getStyleClass().add("pipeline-attention-panel");
+        card.getChildren().addAll(heading, subtitle, pipelineSummarySlot, attentionPanel);
+        return card;
+    }
+
+    private void createPipelineStages() {
+        String[] labels = {
+                "TOTAL APPLICANTS", "AWAITING EVALUATION", "EVALUATIONS COMPLETED",
+                "APPROVED", "REJECTED", "FAILED / INCOMPLETE"
+        };
+        String[] iconNames = {
+                Icons.APPLICANTS, Icons.INFO, Icons.EVALUATION, Icons.CHECK, Icons.CLOSE, Icons.REFRESH
+        };
+        String[] accents = {
+                "pipeline-accent-blue", "pipeline-accent-amber", "pipeline-accent-blue",
+                "pipeline-accent-teal", "pipeline-accent-red", "pipeline-accent-red"
+        };
+        String[] tips = {
+                "All applicant records in the repository. Open the Applicants screen to view them.",
+                "Applicants without a stored result for this selected policy and version. No matching filtered view exists.",
+                "Distinct applicants with a saved result for this policy and version. No matching filtered view exists.",
+                "Latest known approval outcomes for distinct applicants. No matching filtered view exists.",
+                "Latest known rejection outcomes for distinct applicants. No matching filtered view exists.",
+                "Unavailable: the evaluation model does not represent failed or incomplete runs."
+        };
+        for (int index = 0; index < labels.length; index++) {
+            VBox content = new VBox(8);
+            content.getStyleClass().addAll("pipeline-stage-card", accents[index]);
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label arrow = new Label("›");
+            arrow.getStyleClass().add("pipeline-stage-arrow");
+            arrow.setVisible(false);
+            arrow.setManaged(false);
+            HBox iconLine = new HBox(7, Icons.create(iconNames[index], 0.65, null), spacer, arrow);
+            iconLine.setAlignment(Pos.CENTER_LEFT);
+            iconLine.getStyleClass().add("pipeline-stage-icon");
+            pipelineStageArrows.add(arrow);
+            Label heading = new Label(labels[index]);
+            heading.getStyleClass().add("pipeline-stage-title");
+            heading.setWrapText(true);
+            Label value = new Label("—");
+            value.getStyleClass().add("pipeline-stage-value");
+            Label description = new Label("Select a policy version");
+            description.getStyleClass().add("pipeline-stage-description");
+            description.setWrapText(true);
+            ProgressBar meter = new ProgressBar(-1);
+            meter.getStyleClass().add("pipeline-stage-meter");
+            meter.setMaxWidth(Double.MAX_VALUE);
+            content.getChildren().addAll(iconLine, heading, value, description, meter);
+            content.setMinWidth(0);
+            content.setMaxWidth(Double.MAX_VALUE);
+
+            Node stage = content;
+            if (index == 0) {
+                Button button = new Button();
+                button.getStyleClass().add("pipeline-stage-action");
+                button.setGraphic(content);
+                button.setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
+                button.setTooltip(new Tooltip(tips[index]));
+                button.setAccessibleText(labels[index] + ". Open applicant records.");
+                button.setOnAction(event -> navigateTo(Sidebar.Destination.APPLICANTS));
+                stage = button;
+            } else {
+                Tooltip.install(content, new Tooltip(tips[index]));
+            }
+            pipelineStageNodes.add(stage);
+            pipelineStageValues.add(value);
+            pipelineStageDescriptions.add(description);
+            pipelineStageMeters.add(meter);
+        }
+    }
+
+    private void layoutPipelineStages(double width) {
+        int columns = width >= 1180 ? 6 : width >= 620 ? 3 : 2;
+        for (int index = 0; index < pipelineStageArrows.size(); index++) {
+            boolean showArrow = width >= 1180 && index < pipelineStageArrows.size() - 1;
+            pipelineStageArrows.get(index).setVisible(showArrow);
+            pipelineStageArrows.get(index).setManaged(showArrow);
+        }
+        pipelineStageGrid.getChildren().clear();
+        pipelineStageGrid.getColumnConstraints().clear();
+        for (int columnIndex = 0; columnIndex < columns; columnIndex++) {
+            ColumnConstraints column = new ColumnConstraints();
+            column.setPercentWidth(100.0 / columns);
+            column.setHgrow(Priority.ALWAYS);
+            column.setFillWidth(true);
+            pipelineStageGrid.getColumnConstraints().add(column);
+        }
+        for (int index = 0; index < pipelineStageNodes.size(); index++) {
+            Node node = pipelineStageNodes.get(index);
+            int column = index % columns;
+            int row = index / columns;
+            pipelineStageGrid.add(node, column, row);
+            if (node instanceof Region region) {
+                region.setMinWidth(0);
+                region.setMaxWidth(Double.MAX_VALUE);
+            }
+            GridPane.setHgrow(node, Priority.ALWAYS);
+            GridPane.setFillWidth(node, true);
+        }
+    }
+
+    private void renderPipelineSummary(PipelineCalculator.PipelineSummary summary, Policy policy) {
+        stopShimmer(pipelineSummarySlot);
+        if (summary.misconfiguredVersion()) {
+            VBox warning = new VBox(10);
+            warning.getStyleClass().add("pipeline-misconfigured-state");
+            StatusBadge badge = StatusBadge.warning("MISCONFIGURED VERSION");
+            Label message = new Label(summary.warnings().get(0));
+            message.getStyleClass().add("pipeline-warning-text");
+            message.setWrapText(true);
+            Button openPolicy = new Button("Review policy version");
+            openPolicy.getStyleClass().add("btn-secondary");
+            openPolicy.setOnAction(event -> navigateTo(Sidebar.Destination.POLICIES));
+            warning.getChildren().addAll(badge, message, openPolicy);
+            pipelineSummarySlot.getChildren().setAll(warning);
+            if (pendingPipelineAttention != null) {
+                renderPipelineAttention(pendingPipelineAttention, policy, -2);
+            }
+            return;
+        }
+        pipelineSummarySlot.getChildren().setAll(pipelineStageGrid);
+
+        PipelineCalculator.Metric total = summary.totalApplicants();
+        PipelineCalculator.Metric awaiting = summary.awaitingEvaluation();
+        PipelineCalculator.Metric completed = summary.evaluationsCompleted();
+        PipelineCalculator.Metric approved = summary.approved();
+        PipelineCalculator.Metric rejected = summary.rejected();
+        List<PipelineCalculator.Metric> metrics = List.of(
+                total, awaiting, completed, approved, rejected, summary.failedOrIncomplete());
+        long totalCount = availableCount(total);
+        long completedCount = availableCount(completed);
+        long awaitingCount = availableCount(awaiting);
+        long approvedCount = availableCount(approved);
+        long rejectedCount = availableCount(rejected);
+        setPipelineStage(0, total, programFilter.getValue() == null
+                ? "Applicants in the repository" : "Applicants in the selected program",
+                totalCount, totalCount);
+        setPipelineStage(1, awaiting, awaiting.isAvailable()
+                ? awaitingCount + " not yet evaluated"
+                : "Awaiting count unavailable", awaitingCount, totalCount);
+        setPipelineStage(2, completed, completed.isAvailable()
+                ? completedCount + " of " + totalCount + " applicants evaluated"
+                : completed.explanation(), completedCount, totalCount);
+        setPipelineStage(3, approved, approved.isAvailable()
+                ? approvedCount + " of " + completedCount + " completed"
+                : approved.explanation(), approvedCount, completedCount);
+        setPipelineStage(4, rejected, rejected.isAvailable()
+                ? rejectedCount + " of " + completedCount + " completed"
+                : rejected.explanation(), rejectedCount, completedCount);
+        setPipelineStage(5, summary.failedOrIncomplete(), summary.failedOrIncomplete().explanation(), 0, 0);
+        for (int index = 0; index < metrics.size(); index++) {
+            Tooltip tooltip = index == 0
+                    ? new Tooltip("Open all applicant records. No evaluation-status filter is available.")
+                    : new Tooltip(metrics.get(index).explanation() == null
+                            ? "No filtered destination exists for this stage."
+                            : metrics.get(index).explanation());
+            if (pipelineStageNodes.get(index) instanceof Button button) {
+                button.setTooltip(tooltip);
+                button.setAccessibleText("Total applicants: " + total.displayValue()
+                        + ". Open applicant records.");
+            } else {
+                Tooltip.install(pipelineStageNodes.get(index), tooltip);
+            }
+        }
+    }
+
+    private void setPipelineStage(int index, PipelineCalculator.Metric metric, String description,
+                                  long numerator, long denominator) {
+        pipelineStageValues.get(index).setText(metric.displayValue());
+        pipelineStageDescriptions.get(index).setText(description == null ? "" : description);
+        ProgressBar meter = pipelineStageMeters.get(index);
+        meter.setProgress(metric.isAvailable() && denominator > 0
+                ? Math.min(1.0, (double) numerator / denominator)
+                : metric.isAvailable() && denominator == 0 && index == 0 ? 1.0 : -1);
+        meter.setVisible(metric.isAvailable() && denominator > 0 && index != 0);
+        meter.setManaged(meter.isVisible());
+    }
+
+    private static long availableCount(PipelineCalculator.Metric metric) {
+        return metric.count() == null ? 0 : metric.count();
+    }
+
+    private void renderPipelineAttention(List<PipelineCalculator.AttentionApplicant> applicants,
+                                        Policy policy, long total) {
+        stopShimmer(pipelineAttentionSlot);
+        if (total == -2) {
+            Label unavailable = new Label(
+                    "Attention status is unavailable while this policy version has no evaluation conditions.");
+            unavailable.getStyleClass().add("pipeline-current-state");
+            pipelineAttentionSlot.getChildren().setAll(unavailable);
+            return;
+        }
+        if (total < 0) {
+            return;
+        }
+        if (total == 0) {
+            pipelineAttentionSlot.getChildren().setAll(new EmptyState(
+                    Icons.APPLICANTS, "No applicants yet",
+                    "Add an applicant to begin this policy's decision pipeline.",
+                    "Add applicant", openAddApplicant));
+            return;
+        }
+        if (applicants.isEmpty()) {
+            Label current = new Label("No applicants are awaiting evaluation for this policy version.");
+            current.getStyleClass().add("pipeline-current-state");
+            pipelineAttentionSlot.getChildren().setAll(current);
+            return;
+        }
+
+        VBox rows = new VBox(6);
+        if (applicants.size() == total) {
+            Label noEvaluations = new Label("No evaluations yet for this policy version.");
+            noEvaluations.getStyleClass().add("pipeline-empty-evaluations");
+            rows.getChildren().add(noEvaluations);
+        }
+        applicants.stream().limit(PIPELINE_ATTENTION_LIMIT).forEach(item ->
+                rows.getChildren().add(pipelineAttentionRow(item, policy)));
+        if (applicants.size() > PIPELINE_ATTENTION_LIMIT) {
+            Button viewAll = new Button("View all (" + applicants.size() + ")");
+            viewAll.getStyleClass().add("link-action");
+            viewAll.setTooltip(new Tooltip(
+                    "Open all applicants; no awaiting-evaluation filter is available in that view."));
+            viewAll.setOnAction(event -> navigateTo(Sidebar.Destination.APPLICANTS));
+            rows.getChildren().add(viewAll);
+        }
+        pipelineAttentionSlot.getChildren().setAll(rows);
+    }
+
+    private Button pipelineAttentionRow(PipelineCalculator.AttentionApplicant item, Policy policy) {
+        HBox row = new HBox(12);
+        row.getStyleClass().add("pipeline-attention-row-content");
+        row.setAlignment(Pos.CENTER_LEFT);
+        VBox identity = new VBox(3);
+        Label name = new Label(item.displayName());
+        name.getStyleClass().add("pipeline-attention-name");
+        Label policyName = new Label("Policy · "
+                + Objects.requireNonNullElse(policy.getName(), "Selected policy"));
+        policyName.getStyleClass().add("pipeline-attention-detail");
+        identity.getChildren().addAll(name, policyName);
+        HBox.setHgrow(identity, Priority.ALWAYS);
+        row.getChildren().addAll(identity, StatusBadge.warning("AWAITING"));
+
+        Button button = new Button();
+        button.getStyleClass().add("pipeline-attention-row");
+        button.setGraphic(row);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setMinWidth(0);
+        button.setAccessibleText("Open applicant " + item.displayName()
+                + ", awaiting evaluation for " + policyName.getText());
+        if (item.applicantId() != null) {
+            button.setOnAction(event -> {
+                AppContext.getInstance().selectedApplicantProperty().set(
+                        new Applicant(item.applicantId(), item.displayName(), 0, 0, List.of()));
+                navigateTo(Sidebar.Destination.APPLICANTS);
+            });
+        } else {
+            button.setDisable(true);
+            button.setTooltip(new Tooltip("This applicant record has no identifier and cannot be selected."));
+        }
+        return button;
+    }
+
+    private void refreshPipeline() {
+        AppContext ctx = AppContext.getInstance();
+        Label offlineLabel = (Label) ((HBox) pipelineWidget.getChildren().get(0)).getChildren().get(1);
+        boolean offline = !ctx.mongoOnlineProperty().get();
+        offlineLabel.setVisible(offline);
+        offlineLabel.setManaged(offline);
+        Policy policy = policyChoice.getValue();
+        if (policy == null) {
+            policy = ctx.selectedPolicyProperty().get();
+        }
+        PolicyVersion version = versionFilter.getValue();
+        if (version == null) {
+            version = ctx.selectedVersionProperty().get();
+        }
+        if (policy == null || version == null || version.getVersionNumber() <= 0) {
+            pipelineEvaluateButton.setDisable(true);
+            renderPipelineSelectionState();
+            return;
+        }
+        pipelineEvaluateButton.setDisable(version.getConditions().isEmpty());
+        if (version.getConditions().isEmpty()) {
+            pipelineGeneration++;
+            cancelPipelineTasks();
+            pipelineCache.clear();
+            pendingPipelineKey = null;
+            PipelineCalculator.PipelineSummary warning = pipelineCalculator.calculate(
+                    List.of(), List.of(), policy.getId(), version.getVersionNumber(), version);
+            pendingPipelineSummary = warning;
+            pendingPipelineAttention = List.of();
+            renderPipelineSummary(warning, policy);
+            renderPipelineAttention(List.of(), policy, -2);
+            return;
+        }
+
+        PipelineCacheKey key = new PipelineCacheKey(policy.getId(), version.getVersionNumber(),
+                ctx.resultsChangedProperty().get());
+        PipelineCache cached = pipelineCache.get(key);
+        if (cached != null) {
+            renderPipelineSummary(cached.summary(), policy);
+            renderPipelineAttention(cached.attention(), policy,
+                    availableCount(cached.summary().totalApplicants()));
+            return;
+        }
+
+        long generation = ++pipelineGeneration;
+        if (activePipelineSummaryTask != null && !activePipelineSummaryTask.isDone()) {
+            activePipelineSummaryTask.cancel(true);
+        }
+        if (activePipelineAttentionTask != null && !activePipelineAttentionTask.isDone()) {
+            activePipelineAttentionTask.cancel(true);
+        }
+        PipelineCacheKey taskKey = key;
+        String policyId = policy.getId();
+        int versionNumber = version.getVersionNumber();
+        String programId = programFilter.getValue() == null ? null : programFilter.getValue().getId();
+        PolicyVersion selectedVersion = version;
+        Policy selectedPolicy = policy;
+        List<Applicant> offlineApplicants = List.copyOf(ctx.getApplicants());
+        showSkeleton(pipelineSummarySlot, 6);
+        showSkeleton(pipelineAttentionSlot, 3);
+
+        Task<PipelineCalculator.PipelineSummary> summaryTask = new Task<>() {
+            @Override
+            protected PipelineCalculator.PipelineSummary call() {
+                PipelineData data = loadPipelineData(ctx, offlineApplicants, offline,
+                        policyId, versionNumber, programId);
+                return pipelineCalculator.calculate(data.applicants(), data.results(),
+                        policyId, versionNumber, selectedVersion);
+            }
+        };
+        Task<List<PipelineCalculator.AttentionApplicant>> attentionTask = new Task<>() {
+            @Override
+            protected List<PipelineCalculator.AttentionApplicant> call() {
+                PipelineData data = loadPipelineData(ctx, offlineApplicants, offline,
+                        policyId, versionNumber, programId);
+                return pipelineCalculator.calculate(data.applicants(), data.results(),
+                        policyId, versionNumber, selectedVersion).needsAttention();
+            }
+        };
+        pendingPipelineKey = taskKey;
+        pendingPipelineSummary = null;
+        pendingPipelineAttention = null;
+        summaryTask.setOnSucceeded(event -> {
+            if (generation != pipelineGeneration) return;
+            pendingPipelineSummary = summaryTask.getValue();
+            renderPipelineSummary(pendingPipelineSummary, selectedPolicy);
+            cachePipelineResultIfReady(selectedPolicy);
+        });
+        attentionTask.setOnSucceeded(event -> {
+            if (generation != pipelineGeneration) return;
+            pendingPipelineAttention = attentionTask.getValue();
+            if (pendingPipelineSummary != null) {
+                renderPipelineAttention(pendingPipelineAttention, selectedPolicy,
+                        pendingPipelineSummary.misconfiguredVersion() ? -2
+                                : availableCount(pendingPipelineSummary.totalApplicants()));
+            }
+            cachePipelineResultIfReady(selectedPolicy);
+        });
+        summaryTask.setOnFailed(event -> handlePipelineTaskFailure(
+                "Decision pipeline summary load failed", summaryTask.getException(), pipelineSummarySlot,
+                generation));
+        attentionTask.setOnFailed(event -> handlePipelineTaskFailure(
+                "Decision pipeline attention load failed", attentionTask.getException(), pipelineAttentionSlot,
+                generation));
+        activePipelineSummaryTask = summaryTask;
+        activePipelineAttentionTask = attentionTask;
+        ctx.getExecutor().execute(summaryTask);
+        ctx.getExecutor().execute(attentionTask);
+    }
+
+    private PipelineData loadPipelineData(AppContext ctx, List<Applicant> offlineApplicants, boolean offline,
+                                          String policyId, int versionNumber, String programId) {
+        List<Applicant> applicants = offline || ctx.getApplicantRepository() == null
+                ? offlineApplicants
+                : ctx.getApplicantRepository().findAll().stream()
+                        .map(ApplicantDocumentMapper::toApplicant)
+                        .filter(Objects::nonNull)
+                        .toList();
+        if (programId != null) {
+            applicants = applicants.stream()
+                    .filter(applicant -> Objects.equals(programId, applicant.getProgramId()))
+                    .toList();
+        }
+        List<EvaluationResult> results = ctx.getEvaluationResultRepository() == null
+                ? List.copyOf(ctx.getEvaluationResults())
+                : ctx.getEvaluationResultRepository().findByPolicyAndVersion(policyId, versionNumber);
+        return new PipelineData(applicants, results);
+    }
+
+    private void cachePipelineResultIfReady(Policy policy) {
+        if (pendingPipelineKey != null && pendingPipelineSummary != null
+                && pendingPipelineAttention != null) {
+            if (pendingPipelineKey.resultsVersion() != AppContext.getInstance().resultsChangedProperty().get()) {
+                refreshPipeline();
+                return;
+            }
+            pipelineCache.clear();
+            pipelineCache.put(pendingPipelineKey,
+                    new PipelineCache(pendingPipelineSummary, pendingPipelineAttention));
+            renderPipelineAttention(pendingPipelineAttention, policy,
+                    pendingPipelineSummary.misconfiguredVersion() ? -2
+                            : availableCount(pendingPipelineSummary.totalApplicants()));
+        }
+    }
+
+    private void handlePipelineTaskFailure(String message, Throwable failure, StackPane slot, long generation) {
+        if (generation != pipelineGeneration || failure == null) return;
+        AppContext.logFailure(message, failure);
+        String detail = failure.getMessage() == null || failure.getMessage().isBlank()
+                ? "Pipeline data could not be loaded."
+                : MongoConfig.sanitize(failure.getMessage());
+        stopShimmer(slot);
+        slot.getChildren().setAll(createErrorState("Unable to load decision pipeline", detail,
+                "Retry", this::refreshPipeline));
+        AppContext.getInstance().showToast(
+                Toast.errorWithAction("Decision Pipeline Failed", detail, "Retry", this::refreshPipeline));
+    }
+
+    private void renderPipelineSelectionState() {
+        pipelineGeneration++;
+        pipelineCache.clear();
+        pendingPipelineKey = null;
+        pendingPipelineSummary = null;
+        pendingPipelineAttention = null;
+        cancelPipelineTasks();
+        stopShimmer(pipelineSummarySlot);
+        stopShimmer(pipelineAttentionSlot);
+        pipelineSummarySlot.getChildren().setAll(new EmptyState(
+                Icons.POLICIES, "Select a policy version",
+                "Choose a policy and saved version in the dashboard filters to view applicant progress.",
+                "View policies", () -> navigateTo(Sidebar.Destination.POLICIES)));
+        pipelineAttentionSlot.getChildren().setAll(new Label("Select a policy version to see applicants needing evaluation."));
+    }
+
+    private void cancelPipelineTasks() {
+        if (activePipelineSummaryTask != null && !activePipelineSummaryTask.isDone()) {
+            activePipelineSummaryTask.cancel(true);
+        }
+        if (activePipelineAttentionTask != null && !activePipelineAttentionTask.isDone()) {
+            activePipelineAttentionTask.cancel(true);
+        }
+    }
+
     private VBox createRecentEvaluationsCard() {
         recentWidget = new VBox(16);
         recentWidget.getStyleClass().addAll("card", "dashboard-card");
-        Label title = new Label("Recent evaluations");
+        Label title = new Label("Recent Activity");
         title.getStyleClass().add("dashboard-section-title");
         configureRecentTable();
         recentEvaluations.setPrefHeight(300);
         recentEvaluations.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         recentEvaluationsSlot.getStyleClass().add("widget-slot");
-        recentWidget.getChildren().addAll(title, recentEvaluationsSlot);
+        Button viewAll = new Button("View all");
+        viewAll.getStyleClass().add("link-action");
+        viewAll.setOnAction(event -> navigateTo(Sidebar.Destination.EVALUATION));
+        HBox titleRow = new HBox(12, title, viewAll);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(title, Priority.ALWAYS);
+        recentWidget.getChildren().addAll(titleRow, recentEvaluationsSlot);
         VBox.setVgrow(recentEvaluationsSlot, Priority.ALWAYS);
         return recentWidget;
+    }
+
+    private VBox createDataQualityCard() {
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", "dashboard-card");
+        Label title = new Label("Data Quality Warnings");
+        title.getStyleClass().add("dashboard-section-title");
+        EmptyState unavailable = new EmptyState(Icons.INFO, "Checks unavailable",
+                "The application does not currently provide validated data-quality findings.",
+                null, null);
+        unavailable.setMinHeight(160);
+        card.getChildren().addAll(title, unavailable);
+        return card;
+    }
+
+    private VBox createQuickAccessCard() {
+        VBox card = new VBox(12);
+        card.getStyleClass().addAll("card", "dashboard-card");
+        Label title = new Label("Quick Access");
+        title.getStyleClass().add("dashboard-section-title");
+        card.getChildren().addAll(
+                title,
+                quickAccessButton("View All Programs", Icons.POLICIES, Sidebar.Destination.PROGRAMS),
+                quickAccessButton("View All Applicants", Icons.APPLICANTS, Sidebar.Destination.APPLICANTS),
+                quickAccessButton("Manage Policies", Icons.POLICIES, Sidebar.Destination.POLICIES),
+                quickAccessButton("View Evaluations", Icons.EVALUATION, Sidebar.Destination.EVALUATION));
+        return card;
+    }
+
+    private Button quickAccessButton(String title, String icon, Sidebar.Destination destination) {
+        Button button = new Button(title, Icons.create(icon, 0.7, "#89b4fa"));
+        button.getStyleClass().addAll("btn-secondary", "insight-quick-action");
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setOnAction(event -> navigateTo(destination));
+        return button;
+    }
+
+    private void navigateTo(Sidebar.Destination destination) {
+        if (openDestination != null) {
+            openDestination.accept(destination);
+        }
     }
 
     private void configureRecentTable() {
@@ -1124,10 +1903,7 @@ public class DashboardView implements BaseView {
     private void layoutDashboard(VBox header, FlowPane filters, VBox recentCard, VBox attentionCard,
                                  VBox whatIfCard, double width) {
         double screenWidth = width + SIDEBAR_WIDTH;
-        int columns = screenWidth >= 1300 ? 3 : 2;
-        if (screenWidth < 900) {
-            columns = 1;
-        }
+        int columns = screenWidth >= 900 ? 3 : 1;
         layoutKpiCards(width);
         if (responsiveColumnCount == columns && !contentGrid.getChildren().isEmpty()) return;
         responsiveColumnCount = columns;
@@ -1143,23 +1919,25 @@ public class DashboardView implements BaseView {
         contentGrid.add(header, 0, 0, columns, 1);
         contentGrid.add(filters, 0, 1, columns, 1);
         contentGrid.add(kpiSlot, 0, 2, columns, 1);
+        contentGrid.add(policyHealthWidget, 0, 3, columns, 1);
+        contentGrid.add(pipelineWidget, 0, 4, columns, 1);
         if (columns == 3) {
-            contentGrid.add(pieWidget, 0, 3);
-            contentGrid.add(barWidget, 1, 3, 2, 1);
-            contentGrid.add(recentCard, 0, 4, 2, 1);
-            contentGrid.add(attentionCard, 2, 4);
-        } else if (columns == 2) {
-            contentGrid.add(pieWidget, 0, 3);
-            contentGrid.add(barWidget, 1, 3);
-            contentGrid.add(recentCard, 0, 4);
-            contentGrid.add(attentionCard, 1, 4);
+            contentGrid.add(pieWidget, 0, 5, 2, 1);
+            contentGrid.add(recentCard, 2, 5);
+            contentGrid.add(qualityWidget, 0, 6, 2, 1);
+            contentGrid.add(quickAccessWidget, 2, 6);
+            contentGrid.add(barWidget, 0, 7, 2, 1);
+            contentGrid.add(attentionCard, 2, 7);
+            contentGrid.add(whatIfCard, 0, 8, 3, 1);
         } else {
-            contentGrid.add(pieWidget, 0, 3);
-            contentGrid.add(barWidget, 0, 4);
-            contentGrid.add(recentCard, 0, 5);
-            contentGrid.add(attentionCard, 0, 6);
+            contentGrid.add(pieWidget, 0, 5);
+            contentGrid.add(recentCard, 0, 6);
+            contentGrid.add(qualityWidget, 0, 7);
+            contentGrid.add(quickAccessWidget, 0, 8);
+            contentGrid.add(barWidget, 0, 9);
+            contentGrid.add(attentionCard, 0, 10);
+            contentGrid.add(whatIfCard, 0, 11);
         }
-        contentGrid.add(whatIfCard, 0, columns == 1 ? 7 : 5, columns, 1);
         for (Node node : contentGrid.getChildren()) {
             if (node instanceof Region region) {
                 region.setMinWidth(0);
@@ -1211,10 +1989,13 @@ public class DashboardView implements BaseView {
         Task<DashboardSnapshot> previousTask = activeDashboardTask;
         if (previousTask != null && !previousTask.isDone()) previousTask.cancel(true);
         DashboardAnalytics.Filters filters = selectedFilters();
-        List<Policy> policies = List.copyOf(ctx.getPolicies());
-        showSkeleton(kpiSlot, 6);
+        long cachedApplicantCount = ctx.getApplicants().size();
+        LocalDate trendEndDate = LocalDate.now();
+        LocalDate trendStartDate = trendEndDate.minusDays(29);
+        showSkeleton(kpiSlot, 4);
         showSkeleton(chartCard, 1);
         showSkeleton(barCard, 1);
+        showSkeleton(policyHealthRowsSlot, 3);
         showSkeleton(recentEvaluationsSlot, 3);
         showSkeleton(needsAttentionSlot, 3);
 
@@ -1225,13 +2006,23 @@ public class DashboardView implements BaseView {
                         ? List.copyOf(ctx.getEvaluationResults())
                         : ctx.getEvaluationResultRepository().findAll();
                 List<ProgramConfiguration> programs = ctx.getProgramService().listPrograms();
-                DashboardAnalytics.Analysis analysis = dashboardAnalytics.analyze(results, policies, filters);
+                long programCount = ctx.getProgramService().countPrograms();
+                long applicantCount = ctx.getApplicantRepository() == null
+                        ? cachedApplicantCount : ctx.getApplicantRepository().count();
+                long decisionCount = ctx.getEvaluationResultRepository() == null
+                        ? results.size() : ctx.getEvaluationResultRepository().countDecisions();
+                long activePolicyCount = ctx.getPolicyRepository().countActivePolicies();
+                List<Policy> loadedPolicies = ctx.getPolicyRepository().findAll();
+                DashboardAnalytics.Analysis analysis = dashboardAnalytics.analyze(results, loadedPolicies, filters);
                 DashboardAnalytics.Filters runScope = new DashboardAnalytics.Filters(
                         filters.programId(), filters.policyId(), filters.versionNumber(), null,
                         DashboardAnalytics.DecisionFilter.ALL);
                 List<DashboardAnalytics.RunOption> runs =
-                        dashboardAnalytics.findRuns(results, policies, runScope);
-                return new DashboardSnapshot(programs, runs, analysis);
+                        dashboardAnalytics.findRuns(results, loadedPolicies, runScope);
+                List<DashboardAnalytics.DailyDecisionCount> dailyDecisionCounts =
+                        dashboardAnalytics.dailyDecisionCounts(results, trendStartDate, trendEndDate);
+                return new DashboardSnapshot(programs, loadedPolicies, programCount, applicantCount, decisionCount,
+                        activePolicyCount, dailyDecisionCounts, runs, analysis);
             }
         };
         activeDashboardTask = task;
@@ -1241,8 +2032,10 @@ public class DashboardView implements BaseView {
             DashboardSnapshot snapshot = task.getValue();
             if (updateDashboardFilters(snapshot)) return;
             DashboardAnalytics.Analysis analysis = snapshot.analysis();
-            renderKpis(analysis, filters);
-            renderPieChart(analysis.evaluations());
+            renderPolicyHealth(snapshot.policies());
+            renderKpis(snapshot.programCount(), snapshot.applicantCount(), snapshot.decisionCount(),
+                    snapshot.activePolicyCount());
+            renderApprovalTrend(snapshot.dailyDecisionCounts());
             renderComplianceChart(analysis);
             renderRecentEvaluations(analysis.evaluations());
             renderNeedsAttention(analysis);
@@ -1263,7 +2056,7 @@ public class DashboardView implements BaseView {
                         ? "Dashboard data could not be loaded."
                         : MongoConfig.sanitize(failure.getMessage());
                 stopDashboardShimmers();
-                for (StackPane slot : List.of(kpiSlot, chartCard, barCard,
+                for (StackPane slot : List.of(kpiSlot, chartCard, barCard, policyHealthRowsSlot,
                         recentEvaluationsSlot, needsAttentionSlot)) {
                     slot.getChildren().setAll(createErrorState(
                             "Unable to load dashboard insights", message, "Retry", this::refreshDashboard));
@@ -1314,109 +2107,60 @@ public class DashboardView implements BaseView {
     }
 
     private void stopDashboardShimmers() {
-        for (StackPane slot : List.of(kpiSlot, chartCard, barCard,
+        for (StackPane slot : List.of(kpiSlot, chartCard, barCard, policyHealthRowsSlot,
                 recentEvaluationsSlot, needsAttentionSlot)) {
             stopShimmer(slot);
         }
     }
 
-    private void renderKpis(DashboardAnalytics.Analysis analysis, DashboardAnalytics.Filters filters) {
+    private void renderKpis(long programCount, long applicantCount, long decisionCount,
+                            long activePolicyCount) {
         kpiSlot.getChildren().setAll(kpiContent);
-        DashboardAnalytics.Funnel funnel = analysis.funnel();
-        int evaluated = funnel.evaluated();
-        int eligible = funnel.eligible();
-        int rejected = funnel.rejected();
-        totalCard.setValue(evaluated);
-        totalCard.setSubtext("Unique applicants with evaluations");
-        totalCard.setDeltaStyle("delta-flat");
-        eligibleCard.setValue(eligible);
-        rejectedCard.setValue(rejected);
-        eligibleCard.setSubtext(eligible + " / " + evaluated + " evaluated");
-        rejectedCard.setSubtext(rejected + " / " + evaluated + " evaluated");
-        nearMissCard.setValue(funnel.nearMisses());
-        nearMissCard.setSubtext(funnel.nearMisses() + " / " + funnel.rejectedWithRuleDetails()
-                + " rejected with rule details");
-        if (evaluated == 0) {
-            passRateCard.setValueText("N/A");
-            impactCard.setValueText("N/A");
-            baselineSummaryLabel.setText("Baseline unavailable for an empty selected sample.");
-            kpiContent.getChildren().setAll(kpiGrid, sampleSummaryLabel, baselineSummaryLabel, new EmptyState(
-                    Icons.EVALUATION, "No evaluations yet",
-                    "Change the filters or evaluate applicants to populate these metrics.",
-                    null, null));
-        } else {
-            kpiContent.getChildren().setAll(kpiGrid, sampleSummaryLabel, baselineSummaryLabel);
-            double rate = eligible * 100.0 / evaluated;
-            passRateCard.setValueText(String.format("%.1f%%", rate));
-            passRateCard.setSubtext(eligible + " eligible / " + evaluated + " selected");
-            DashboardAnalytics.Baseline baseline = analysis.baseline();
-            if (baseline.isAvailable()) {
-                impactCard.setValue(baseline.changedDecisions());
-                impactCard.setSubtext("Changed of " + baseline.sharedApplicants() + " paired");
-                impactCard.setDeltaText("vs v" + baseline.versionNumber());
-                impactCard.setDeltaStyle("delta-flat");
-                passRateCard.setDeltaText(String.format("%+.1f pp paired vs v%d",
-                        baseline.currentPassRate() - baseline.passRate(), baseline.versionNumber()));
-                passRateCard.setDeltaStyle(baseline.currentPassRate() >= baseline.passRate()
-                        ? "delta-up" : "delta-down");
-                baselineSummaryLabel.setText(String.format(
-                        "Baseline: immediately preceding saved policy version v%d at %.1f%% (%d / %d eligible); current selected cohort before the decision-status filter at %.1f%% (%d / %d eligible). Rates are paired by applicant ID; the evaluation-run filter applies only to current results.",
-                        baseline.versionNumber(), baseline.passRate(), baseline.eligibleApplicants(),
-                        baseline.sharedApplicants(), baseline.currentPassRate(), baseline.currentEligibleApplicants(),
-                        baseline.sharedApplicants()));
-            } else {
-                impactCard.setValueText("N/A");
-                impactCard.setSubtext("No paired prior-version results");
-                impactCard.setDeltaText("No baseline");
-                impactCard.setDeltaStyle("delta-flat");
-                passRateCard.setDeltaText("No baseline");
-                passRateCard.setDeltaStyle("delta-flat");
-                baselineSummaryLabel.setText(filters.policyId() == null || filters.versionNumber() == null
-                        ? "Baseline unavailable: select one policy and version to compare with the immediately preceding saved version."
-                        : "Baseline unavailable: no prior saved version has results for the selected applicants.");
-            }
-        }
-        sampleSummaryLabel.setText("Sample: " + evaluated + " distinct evaluated applicants after filters. "
-                + "Pass rate denominator: " + evaluated + ". Near-miss denominator: "
-                + funnel.rejectedWithRuleDetails() + " rejected results with recorded rule details.");
-        if (evaluated == 0) {
-            impactCard.setDeltaText("No selected results");
-            passRateCard.setDeltaText("No selected results");
-        }
-        eligibleCard.setDeltaText("Selected sample");
-        rejectedCard.setDeltaText("Selected sample");
-        eligibleCard.setDeltaStyle("delta-flat");
-        rejectedCard.setDeltaStyle("delta-flat");
+        programsCard.setValueText(Long.toString(programCount));
+        programsCard.setSubtext(programCount == 0
+                ? "No configured programs" : "Configured programs · excludes templates");
+        applicantsCard.setValueText(Long.toString(applicantCount));
+        applicantsCard.setSubtext(applicantCount == 0 ? "No applicant records" : "Applicant records");
+        decisionsCard.setValueText(Long.toString(decisionCount));
+        decisionsCard.setSubtext(decisionCount == 0 ? "No saved decisions" : "Saved evaluation decisions");
+        activePoliciesCard.setValueText(Long.toString(activePolicyCount));
+        activePoliciesCard.setSubtext(activePolicyCount == 0
+                ? "No active policies" : "Non-archived policies with a saved version");
         if (!hasAnimatedEntrance) {
-            Motion.staggeredFadeUp(List.of(totalCard, eligibleCard, rejectedCard, nearMissCard,
-                    passRateCard, impactCard));
+            Motion.staggeredFadeUp(List.of(programsCard, applicantsCard, decisionsCard, activePoliciesCard));
             hasAnimatedEntrance = true;
         }
     }
 
-    private void renderPieChart(List<EvaluationResult> results) {
-        if (results.isEmpty()) {
-            chartCard.getChildren().setAll(new EmptyState(Icons.EVALUATION, "No evaluations yet",
-                    "Evaluate applicants to see the eligible and rejected distribution.",
+    private void renderApprovalTrend(List<DashboardAnalytics.DailyDecisionCount> dailyCounts) {
+        if (dailyCounts.isEmpty()) {
+            chartCard.getChildren().setAll(new EmptyState(Icons.EVALUATION, "No recent decisions",
+                    "Dated, completed approvals or rejections from the last 30 days will appear here. "
+                            + "Undated or unrecognized outcomes are omitted.",
                     null, null));
             return;
         }
-        if (chartCard.getChildren().isEmpty() || chartCard.getChildren().get(0) != pieVisual) {
-            chartCard.getChildren().setAll(pieVisual);
+
+        XYChart.Series<String, Number> approved = new XYChart.Series<>();
+        approved.setName("Eligible");
+        XYChart.Series<String, Number> rejected = new XYChart.Series<>();
+        rejected.setName("Rejected");
+        List<String> dates = new ArrayList<>();
+        DateTimeFormatter dateLabel = DateTimeFormatter.ofPattern("MMM d");
+        for (DashboardAnalytics.DailyDecisionCount dailyCount : dailyCounts) {
+            String label = dateLabel.format(dailyCount.date());
+            dates.add(label);
+            approved.getData().add(new XYChart.Data<>(label, dailyCount.approved()));
+            rejected.getData().add(new XYChart.Data<>(label, dailyCount.rejected()));
         }
-        int passed = (int) results.stream().filter(EvaluationResult::isOverallDecision).count();
-        int failed = results.size() - passed;
-        double passRate = passed * 100.0 / results.size();
-        pieChart.setData(FXCollections.observableArrayList(
-                new PieChart.Data("Eligible (" + passed + ")", passed),
-                new PieChart.Data("Rejected (" + failed + ")", failed)));
-        donutCenterValue.setText(String.format("%.0f%%", passRate));
-        for (PieChart.Data slice : pieChart.getData()) {
-            String tooltipText = slice.getName() + ": " + (int) slice.getPieValue() + " applicants";
-            slice.nodeProperty().addListener((observable, oldNode, node) -> {
-                if (node != null) Tooltip.install(node, new Tooltip(tooltipText));
-            });
-            if (slice.getNode() != null) Tooltip.install(slice.getNode(), new Tooltip(tooltipText));
+        approvalTrendXAxis.setLabel("Date");
+        approvalTrendXAxis.setTickLabelRotation(45);
+        approvalTrendYAxis.setLabel("Evaluations");
+        approvalTrendXAxis.setCategories(FXCollections.observableArrayList(dates));
+        approvalTrendChart.getData().setAll(List.of(approved, rejected));
+        if (chartCard.getChildren().isEmpty()
+                || chartCard.getChildren().get(0) != approvalTrendChart) {
+            chartCard.getChildren().setAll(approvalTrendChart);
         }
     }
 
@@ -1687,8 +2431,25 @@ public class DashboardView implements BaseView {
                                          TextField valuesInput) { }
 
     private record DashboardSnapshot(List<ProgramConfiguration> programs,
+                                     List<Policy> policies,
+                                     long programCount,
+                                     long applicantCount,
+                                     long decisionCount,
+                                     long activePolicyCount,
+                                     List<DashboardAnalytics.DailyDecisionCount> dailyDecisionCounts,
                                      List<DashboardAnalytics.RunOption> runs,
                                      DashboardAnalytics.Analysis analysis) { }
+
+    private record PipelineData(List<Applicant> applicants, List<EvaluationResult> results) { }
+
+    private record PipelineCacheKey(String policyId, int versionNumber, long resultsVersion) { }
+
+    private record PipelineCache(PipelineCalculator.PipelineSummary summary,
+                                 List<PipelineCalculator.AttentionApplicant> attention) {
+        private PipelineCache {
+            attention = List.copyOf(attention);
+        }
+    }
 
     @Override
     public Node getRoot() {
@@ -1698,5 +2459,6 @@ public class DashboardView implements BaseView {
     @Override
     public void onShow() {
         refreshDashboard();
+        refreshPipeline();
     }
 }

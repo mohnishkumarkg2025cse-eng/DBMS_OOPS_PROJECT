@@ -7,6 +7,7 @@ import com.ruleweaver.model.PolicyVersion;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,6 +41,38 @@ class DashboardAnalyticsTest {
                 analysis.ruleImpacts().get(1));
         assertEquals("Interview >= 70", analysis.rejectionReasons().get(0).ruleName());
         assertEquals(2, analysis.rejectionReasons().get(0).failedApplicants());
+    }
+
+    @Test
+    void groupsValidDatedOutcomesByDateAndSkipsUnknownUndatedAndOutOfRangeResults() {
+        LocalDate start = LocalDate.of(2026, 10, 10);
+        EvaluationResult approved = new EvaluationResult();
+        approved.setOverallDecision(true);
+        approved.setEvaluatedOn(start.atTime(8, 0));
+        EvaluationResult rejected = new EvaluationResult();
+        rejected.setOverallDecision(false);
+        rejected.setEvaluatedOn(start.atTime(15, 0));
+        EvaluationResult nextDay = new EvaluationResult();
+        nextDay.setOverallDecision(true);
+        nextDay.setEvaluatedOn(start.plusDays(1).atStartOfDay());
+        EvaluationResult unknown = new EvaluationResult();
+        unknown.setOverallDecision(null);
+        unknown.setEvaluatedOn(start.atTime(12, 0));
+        EvaluationResult undated = new EvaluationResult();
+        undated.setOverallDecision(false);
+        undated.setEvaluatedOn(null);
+        EvaluationResult beforeRange = new EvaluationResult();
+        beforeRange.setOverallDecision(true);
+        beforeRange.setEvaluatedOn(start.minusDays(1).atStartOfDay());
+
+        List<DashboardAnalytics.DailyDecisionCount> daily = analytics.dailyDecisionCounts(
+                List.of(approved, rejected, nextDay, unknown, undated, beforeRange),
+                start, start.plusDays(1));
+
+        assertEquals(List.of(
+                new DashboardAnalytics.DailyDecisionCount(start, 1, 1),
+                new DashboardAnalytics.DailyDecisionCount(start.plusDays(1), 1, 0)), daily);
+        assertTrue(analytics.dailyDecisionCounts(List.of(unknown, undated), start, start).isEmpty());
     }
 
     @Test

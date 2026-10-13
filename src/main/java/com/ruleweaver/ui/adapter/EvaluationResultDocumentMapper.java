@@ -5,6 +5,11 @@ import com.ruleweaver.model.EvaluationResult;
 import org.bson.Document;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +34,7 @@ public final class EvaluationResultDocumentMapper {
                 .append("policyVersionId", result.getPolicyVersionId())
                 .append("evaluationRunId", result.getEvaluationRunId())
                 .append("policyVersion", result.getPolicyVersionNumber())
-                .append("overallDecision", result.isOverallDecision())
+                .append("overallDecision", result.getDecisionOutcome())
                 .append("applicantInputSnapshot", new Document(result.getApplicantInputSnapshot()))
                 .append("engineSemanticsVersion", result.getEngineSemanticsVersion())
                 .append("evaluatedOn", result.getEvaluatedOn() == null
@@ -61,11 +66,11 @@ public final class EvaluationResultDocumentMapper {
         result.setPolicyVersionId(document.getString("policyVersionId"));
         result.setEvaluationRunId(document.getString("evaluationRunId"));
         result.setPolicyVersionNumber(document.getInteger("policyVersion", 0));
-        Boolean overallDecision = document.getBoolean("overallDecision");
-        if (overallDecision == null) {
-            overallDecision = legacyDecision(document.getString("decision"));
-        }
-        result.setOverallDecision(Boolean.TRUE.equals(overallDecision));
+        Object rawDecision = document.get("overallDecision");
+        Boolean overallDecision = rawDecision != null
+                ? rawDecision instanceof Boolean decision ? decision : null
+                : legacyDecision(document.get("decision") instanceof String decision ? decision : null);
+        result.setOverallDecision(overallDecision);
         Object snapshot = document.get("applicantInputSnapshot");
         if (snapshot instanceof Map<?, ?> values) {
             Map<String, Object> typedSnapshot = new LinkedHashMap<>();
@@ -75,8 +80,7 @@ public final class EvaluationResultDocumentMapper {
             result.setApplicantInputSnapshot(typedSnapshot);
         }
         result.setEngineSemanticsVersion(document.getString("engineSemanticsVersion"));
-        String evaluatedOn = document.getString("evaluatedOn");
-        result.setEvaluatedOn(evaluatedOn == null ? null : LocalDateTime.parse(evaluatedOn));
+        result.setEvaluatedOn(evaluatedOn(document.get("evaluatedOn")));
 
         List<ConditionResult> results = new ArrayList<>();
         List<Document> conditionDocuments = document.getList("conditionResults", Document.class, List.of());
@@ -103,5 +107,31 @@ public final class EvaluationResultDocumentMapper {
             case "INELIGIBLE", "NOT ELIGIBLE", "REJECTED", "FAIL", "FAILED" -> false;
             default -> null;
         };
+    }
+
+    private static LocalDateTime evaluatedOn(Object value) {
+        if (value instanceof LocalDateTime dateTime) {
+            return dateTime;
+        }
+        if (value instanceof Date date) {
+            return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+        }
+        if (!(value instanceof String timestamp) || timestamp.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.ofInstant(OffsetDateTime.parse(timestamp).toInstant(),
+                    ZoneId.systemDefault());
+        } catch (DateTimeParseException offsetFailure) {
+            try {
+                return LocalDateTime.parse(timestamp);
+            } catch (DateTimeParseException localDateTimeFailure) {
+                try {
+                    return LocalDateTime.ofInstant(Instant.parse(timestamp), ZoneId.systemDefault());
+                } catch (DateTimeParseException ignored) {
+                    return null;
+                }
+            }
+        }
     }
 }

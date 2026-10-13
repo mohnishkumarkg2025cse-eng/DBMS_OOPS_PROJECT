@@ -6,7 +6,6 @@ import com.ruleweaver.ui.adapter.ApplicantDocumentMapper;
 import com.ruleweaver.ui.components.*;
 import com.ruleweaver.ui.util.Theme;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Pos;
@@ -32,7 +31,7 @@ public class ApplicantsView implements BaseView {
 
     private final StackPane rootPane = new StackPane();
     private final TableView<Applicant> tableView = new TableView<>();
-    private final SearchBar searchBar = new SearchBar("Search candidates by name or skill...");
+    private final SearchBar searchBar = new SearchBar("Search candidates by name, email, or skill...");
     private final Label rowCountLabel = new Label("0 applicants");
     private final LoadingOverlay loadingOverlay = new LoadingOverlay("Loading applicants from MongoDB...");
     private final Map<KeyCombination, Runnable> previousAccelerators = new LinkedHashMap<>();
@@ -45,7 +44,7 @@ public class ApplicantsView implements BaseView {
     }
 
     private void buildUI() {
-        VBox contentBox = new VBox(24);
+        VBox contentBox = new VBox(16);
         contentBox.getStyleClass().add("applicants-page");
         contentBox.setMinWidth(0);
         contentBox.setMaxWidth(Double.MAX_VALUE);
@@ -54,7 +53,7 @@ public class ApplicantsView implements BaseView {
 
         setupTable();
 
-        VBox tableCard = new VBox(16);
+        VBox tableCard = new VBox(10);
         tableCard.getStyleClass().addAll("card", "applicants-card");
         HBox cardHeader = new HBox(16);
         cardHeader.setAlignment(Pos.CENTER_LEFT);
@@ -83,14 +82,50 @@ public class ApplicantsView implements BaseView {
     @Override
     public void onShow() {
         registerShortcuts();
-        AppContext.getInstance().loadApplicantsAsync(this::updateRowCount, error -> {
-            AppContext.getInstance().showToast(Toast.error(
-                    "Applicant Load Failed",
+        loadApplicants();
+    }
+
+    private void loadApplicants() {
+        AppContext ctx = AppContext.getInstance();
+        tableView.setPlaceholder(new Label("Loading applicants..."));
+        ctx.loadApplicantsAsync(() -> {
+            updateRowCount();
+            if (ctx.getApplicantRepository() == null) {
+                tableView.setPlaceholder(new EmptyState(
+                        Icons.APPLICANTS, "Database unavailable",
+                        "Applicant records cannot be loaded until MongoDB is connected.",
+                        null, null));
+                return;
+            }
+            Applicant requested = ctx.selectedApplicantProperty().get();
+            if (requested == null || tableView.getItems() == null) {
+                return;
+            }
+            searchBar.clear();
+            tableView.getItems().stream()
+                    .filter(applicant -> java.util.Objects.equals(applicant.getId(), requested.getId()))
+                    .findFirst()
+                    .ifPresent(applicant -> {
+                        tableView.getSelectionModel().select(applicant);
+                        tableView.scrollTo(applicant);
+                        ctx.selectedApplicantProperty().set(null);
+                    });
+        }, error -> {
+            if (filteredList == null || filteredList.isEmpty()) {
+                tableView.setPlaceholder(new EmptyState(
+                        Icons.APPLICANTS, "Applicants could not be loaded",
+                        "Check the database connection and retry.",
+                        "Retry", this::loadApplicants));
+            }
+            ctx.showToast(Toast.error("Applicant Load Failed",
                     error.getMessage() == null ? "Could not load applicants."
                             : com.ruleweaver.config.MongoConfig.sanitize(error.getMessage()),
-                    null
-            ));
+                    null));
         });
+    }
+
+    public void openAddApplicantDialog() {
+        showAddEditModal(null);
     }
 
     @Override
@@ -178,14 +213,9 @@ public class ApplicantsView implements BaseView {
     private void setupTable() {
         tableView.getStyleClass().add("applicants-table");
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        tableView.setFixedCellSize(54);
         tableView.setMinHeight(240);
-        tableView.setPlaceholder(new EmptyState(
-                Icons.APPLICANTS,
-                "No applicants found",
-                "No applicant matches your search, or there are no profiles yet.",
-                "Add applicant",
-                () -> showAddEditModal(null)
-        ));
+        tableView.setPlaceholder(new Label("Loading applicants..."));
 
         // Column 1: Avatar + Name + Email
         TableColumn<Applicant, Applicant> nameCol = new TableColumn<>("Applicant");
@@ -197,7 +227,7 @@ public class ApplicantsView implements BaseView {
                 if (empty || applicant == null) {
                     setGraphic(null);
                 } else {
-                    HBox box = new HBox(12);
+                    HBox box = new HBox(8);
                     box.setAlignment(Pos.CENTER_LEFT);
 
                     Avatar avatar = new Avatar(applicant.getName());
@@ -205,15 +235,17 @@ public class ApplicantsView implements BaseView {
                     VBox textBlock = new VBox(2);
                     Label nameLbl = new Label(applicant.getName());
                     nameLbl.getStyleClass().add("applicant-name");
-                    nameLbl.setWrapText(true);
+                    nameLbl.setWrapText(false);
                     nameLbl.setMaxWidth(Double.MAX_VALUE);
+                    nameLbl.setTextOverrun(OverrunStyle.ELLIPSIS);
 
                     Label emailLbl = new Label(applicant.getEmail() != null && !applicant.getEmail().isEmpty() 
                             ? applicant.getEmail() 
                             : "ID: " + (applicant.getId() != null ? applicant.getId() : "N/A"));
                     emailLbl.getStyleClass().add("applicant-secondary");
-                    emailLbl.setWrapText(true);
+                    emailLbl.setWrapText(false);
                     emailLbl.setMaxWidth(Double.MAX_VALUE);
+                    emailLbl.setTextOverrun(OverrunStyle.ELLIPSIS);
 
                     textBlock.getChildren().addAll(nameLbl, emailLbl);
                     HBox.setHgrow(textBlock, Priority.ALWAYS);
@@ -222,22 +254,26 @@ public class ApplicantsView implements BaseView {
                 }
             }
         });
+        nameCol.setComparator(java.util.Comparator.comparing(
+                applicant -> applicant.getName() == null ? "" : applicant.getName(),
+                String.CASE_INSENSITIVE_ORDER));
         nameCol.setMinWidth(180);
         nameCol.setPrefWidth(280);
 
         // Column 2: GPA
-        TableColumn<Applicant, String> gpaCol = new TableColumn<>("GPA");
-        gpaCol.setCellValueFactory(param -> new SimpleStringProperty(String.format("%.2f", param.getValue().getGpa())));
+        TableColumn<Applicant, Double> gpaCol = new TableColumn<>("GPA");
+        gpaCol.setCellValueFactory(param ->
+                new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getGpa()));
         gpaCol.setCellFactory(col -> new TableCell<>() {
             @Override
-            protected void updateItem(String val, boolean empty) {
+            protected void updateItem(Double val, boolean empty) {
                 super.updateItem(val, empty);
-                setAlignment(Pos.CENTER_LEFT);
+                setAlignment(Pos.CENTER_RIGHT);
                 if (empty || val == null) {
                     setGraphic(null);
                     setText(null);
                 } else {
-                    Label lbl = new Label(val);
+                    Label lbl = new Label(String.format(java.util.Locale.ROOT, "%.2f", val));
                     lbl.getStyleClass().add("applicant-metric");
                     setGraphic(lbl);
                 }
@@ -247,13 +283,14 @@ public class ApplicantsView implements BaseView {
         gpaCol.setPrefWidth(90);
 
         // Column 3: Interview Score
-        TableColumn<Applicant, String> scoreCol = new TableColumn<>("Interview score");
-        scoreCol.setCellValueFactory(param -> new SimpleStringProperty(String.valueOf(param.getValue().getInterviewScore())));
+        TableColumn<Applicant, Integer> scoreCol = new TableColumn<>("Interview score");
+        scoreCol.setCellValueFactory(param ->
+                new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getInterviewScore()));
         scoreCol.setCellFactory(col -> new TableCell<>() {
             @Override
-            protected void updateItem(String val, boolean empty) {
+            protected void updateItem(Integer val, boolean empty) {
                 super.updateItem(val, empty);
-                setAlignment(Pos.CENTER_LEFT);
+                setAlignment(Pos.CENTER_RIGHT);
                 if (empty || val == null) {
                     setGraphic(null);
                     setText(null);
@@ -282,16 +319,21 @@ public class ApplicantsView implements BaseView {
                     noSkills.getStyleClass().add("applicant-secondary");
                     setGraphic(noSkills);
                 } else {
-                    FlowPane chips = new FlowPane(8, 4);
-                    chips.setAlignment(Pos.CENTER_LEFT);
-                    chips.setMaxWidth(Double.MAX_VALUE);
-                    for (String s : skills) {
-                        chips.getChildren().add(new SkillChip(s));
-                    }
-                    setGraphic(chips);
+                    Label skillSummary = new Label(String.join(" · ", skills));
+                    skillSummary.getStyleClass().add("applicant-skill-summary");
+                    skillSummary.setWrapText(false);
+                    skillSummary.setMaxWidth(Double.MAX_VALUE);
+                    skillSummary.setTextOverrun(OverrunStyle.ELLIPSIS);
+                    Tooltip tooltip = new Tooltip(String.join(", ", skills));
+                    Theme.apply(tooltip);
+                    skillSummary.setTooltip(tooltip);
+                    setGraphic(skillSummary);
                 }
             }
         });
+        skillsCol.setComparator(java.util.Comparator.comparing(
+                (List<String> skills) -> skills == null ? "" : String.join(", ", skills),
+                String.CASE_INSENSITIVE_ORDER));
         skillsCol.setMinWidth(160);
         skillsCol.setPrefWidth(300);
 
@@ -309,6 +351,7 @@ public class ApplicantsView implements BaseView {
                 editIcon.getStyleClass().add("applicant-edit-icon");
                 editBtn.setGraphic(editIcon);
                 editBtn.getStyleClass().add("btn-icon");
+                editBtn.setAccessibleText("Edit candidate");
                 Tooltip editTooltip = new Tooltip("Edit Candidate");
                 Theme.apply(editTooltip);
                 editBtn.setTooltip(editTooltip);
@@ -317,6 +360,7 @@ public class ApplicantsView implements BaseView {
                 deleteIcon.getStyleClass().add("applicant-delete-icon");
                 deleteBtn.setGraphic(deleteIcon);
                 deleteBtn.getStyleClass().addAll("btn-icon", "btn-danger");
+                deleteBtn.setAccessibleText("Delete candidate");
                 Tooltip deleteTooltip = new Tooltip("Delete Candidate");
                 Theme.apply(deleteTooltip);
                 deleteBtn.setTooltip(deleteTooltip);
@@ -338,6 +382,7 @@ public class ApplicantsView implements BaseView {
                 }
             }
         });
+        actionCol.setSortable(false);
         actionCol.setMinWidth(88);
         actionCol.setPrefWidth(104);
 
@@ -348,16 +393,7 @@ public class ApplicantsView implements BaseView {
         filteredList = new FilteredList<>(ctx.getApplicants(), p -> true);
 
         searchBar.textProperty().addListener((obs, oldVal, newVal) -> {
-            filteredList.setPredicate(applicant -> {
-                if (newVal == null || newVal.trim().isEmpty()) {
-                    return true;
-                }
-                String filter = newVal.trim().toLowerCase();
-                boolean matchesName = applicant.getName() != null && applicant.getName().toLowerCase().contains(filter);
-                boolean matchesSkill = applicant.getSkills() != null && applicant.getSkills().stream()
-                        .anyMatch(s -> s.toLowerCase().contains(filter));
-                return matchesName || matchesSkill;
-            });
+            filteredList.setPredicate(applicant -> ApplicantSearchCriteria.matches(applicant, newVal));
             updateRowCount();
         });
 
@@ -383,6 +419,28 @@ public class ApplicantsView implements BaseView {
     private void updateRowCount() {
         int count = filteredList != null ? filteredList.size() : 0;
         rowCountLabel.setText(count + (count == 1 ? " applicant" : " applicants"));
+        if (filteredList == null || count > 0
+                || !AppContext.getInstance().mongoOnlineProperty().get()) {
+            return;
+        }
+        boolean hasRecords = !AppContext.getInstance().getApplicants().isEmpty();
+        boolean hasQuery = searchBar.getText() != null && !searchBar.getText().trim().isEmpty();
+        if (!hasRecords) {
+            tableView.setPlaceholder(new EmptyState(
+                    Icons.APPLICANTS, "No applicant profiles yet",
+                    "Create a candidate profile to make it available for evaluation.",
+                    "New Candidate", () -> showAddEditModal(null)));
+        } else if (hasQuery) {
+            tableView.setPlaceholder(new EmptyState(
+                    Icons.APPLICANTS, "No matching applicants",
+                    "Try a different name, email address, or skill, or clear the search.",
+                    "Clear search", searchBar::clear));
+        } else {
+            tableView.setPlaceholder(new EmptyState(
+                    Icons.APPLICANTS, "No applicants found",
+                    "Applicant records are not currently available.",
+                    null, null));
+        }
     }
 
     private void showAddEditModal(Applicant existing) {
@@ -469,7 +527,7 @@ public class ApplicantsView implements BaseView {
             double gpa = 0.0;
             try {
                 gpa = Double.parseDouble(gpaInput.getText().trim());
-                if (gpa < 0.0 || gpa > 10.0) {
+                if (!Double.isFinite(gpa) || gpa < 0.0 || gpa > 10.0) {
                     gpaError.setText("GPA must be between 0.0 and 10.0.");
                     Motion.shake(gpaInput);
                     valid = false;
@@ -506,8 +564,11 @@ public class ApplicantsView implements BaseView {
             }
 
             String applicantId = isEdit ? existing.getId() : null;
-            Applicant applicant = new Applicant(applicantId, name, gpa, score, skills);
-            applicant.setEmail(emailInput.getText().trim());
+            Applicant applicant = new Applicant(applicantId, name, emailInput.getText().trim(), gpa, score,
+                    skills, isEdit ? existing.getCustomAttributes() : Map.of());
+            if (isEdit) {
+                applicant.setProgramId(existing.getProgramId());
+            }
 
             saveApplicantAsync(applicant, isEdit, () -> {
                 rootPane.getChildren().remove(modalBackdrop);
@@ -555,13 +616,19 @@ public class ApplicantsView implements BaseView {
                             null
                     ));
                     if (onSuccess != null) onSuccess.run();
-                    ctx.loadApplicantsAsync(this::updateRowCount, null);
+                    ctx.loadApplicantsAsync(this::updateRowCount, error -> ctx.showToast(Toast.error(
+                            "Applicant Refresh Failed",
+                            error.getMessage() == null ? "Saved changes, but could not refresh applicants."
+                                    : com.ruleweaver.config.MongoConfig.sanitize(error.getMessage()),
+                            null)));
                 });
             } catch (Exception e) {
                 AppContext.logFailure("Applicant save failed", e);
                 Platform.runLater(() -> {
                     loadingOverlay.hide();
-                    ctx.showToast(Toast.error("Database Save Failed", e.getMessage(), null));
+                    ctx.showToast(Toast.error("Database Save Failed",
+                            e.getMessage() == null ? "Could not save applicant changes."
+                                    : com.ruleweaver.config.MongoConfig.sanitize(e.getMessage()), null));
                 });
             }
         });
@@ -594,13 +661,19 @@ public class ApplicantsView implements BaseView {
                             "Removed '" + applicant.getName() + "' from MongoDB.",
                             null
                     ));
-                    ctx.loadApplicantsAsync(this::updateRowCount, null);
+                    ctx.loadApplicantsAsync(this::updateRowCount, error -> ctx.showToast(Toast.error(
+                            "Applicant Refresh Failed",
+                            error.getMessage() == null ? "Deleted the applicant, but could not refresh the list."
+                                    : com.ruleweaver.config.MongoConfig.sanitize(error.getMessage()),
+                            null)));
                 });
             } catch (Exception e) {
                 AppContext.logFailure("Applicant deletion failed", e);
                 Platform.runLater(() -> {
                     loadingOverlay.hide();
-                    ctx.showToast(Toast.error("Delete Failed", e.getMessage(), null));
+                    ctx.showToast(Toast.error("Delete Failed",
+                            e.getMessage() == null ? "Could not delete applicant."
+                                    : com.ruleweaver.config.MongoConfig.sanitize(e.getMessage()), null));
                 });
             }
         });

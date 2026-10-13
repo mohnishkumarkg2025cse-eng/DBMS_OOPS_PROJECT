@@ -4,6 +4,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.UpdateResult;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -33,11 +35,7 @@ public class ApplicantRepository {
 
     // Find applicant by ID (supports string or ObjectId)
     public Document findById(String id) {
-        try {
-            return collection.find(Filters.eq("_id", new ObjectId(id))).first();
-        } catch (IllegalArgumentException e) {
-            return collection.find(Filters.eq("_id", id)).first();
-        }
+        return collection.find(Filters.eq("_id", mongoId(id))).first();
     }
 
     // Retrieve all applicants (for JavaFX Dashboard)
@@ -45,28 +43,47 @@ public class ApplicantRepository {
         return collection.find().into(new ArrayList<>());
     }
 
+    public long count() {
+        return collection.countDocuments();
+    }
+
     // Update applicant fields
     public void update(String id, Document updatedFields) {
         Document fieldsToUpdate = new Document(updatedFields);
         fieldsToUpdate.remove("_id");
 
-        try {
-            collection.updateOne(
-                    Filters.eq("_id", new ObjectId(id)),
-                    new Document("$set", fieldsToUpdate));
-        } catch (IllegalArgumentException e) {
-            collection.updateOne(
-                    Filters.eq("_id", id),
-                    new Document("$set", fieldsToUpdate));
-        }
+        UpdateResult result = collection.updateOne(
+                Filters.eq("_id", mongoId(id)),
+                new Document("$set", fieldsToUpdate));
+        requireUpdatedApplicant(result, id);
     }
 
     // Delete applicant
     public void delete(String id) {
+        DeleteResult result = collection.deleteOne(Filters.eq("_id", mongoId(id)));
+        requireDeletedApplicant(result, id);
+    }
+
+    private static Object mongoId(String id) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Applicant ID is required.");
+        }
         try {
-            collection.deleteOne(Filters.eq("_id", new ObjectId(id)));
+            return new ObjectId(id);
         } catch (IllegalArgumentException e) {
-            collection.deleteOne(Filters.eq("_id", id));
+            return id;
+        }
+    }
+
+    private static void requireUpdatedApplicant(UpdateResult result, String id) {
+        if (result.getMatchedCount() == 0) {
+            throw new IllegalArgumentException("Applicant not found for update: " + id);
+        }
+    }
+
+    private static void requireDeletedApplicant(DeleteResult result, String id) {
+        if (result.getDeletedCount() == 0) {
+            throw new IllegalArgumentException("Applicant not found for deletion: " + id);
         }
     }
 }

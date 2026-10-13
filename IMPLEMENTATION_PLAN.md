@@ -366,7 +366,7 @@ Each task below is deliberately small enough to review and validate independentl
 ### Phase 2 — Foundational data integrity
 - [x] T002 [Plan:2.1] Define and review program ownership, legacy-data, schema-evolution, and migration rules for the domain models and Mongo documents.
 - [x] T003 [Plan:2.2] Add backward-compatible program/snapshot relationship fields and mapper coverage in the model, repository, and adapter modules.
-- [ ] T004 [Plan:2.3] Add dry-run-first, idempotent relationship migration and program/evaluation indexes with isolated migration tests.
+- [x] T004 [Plan:2.3] Add dry-run-first, idempotent relationship migration and program/evaluation indexes with isolated migration tests.
 - [ ] T005 [Plan:2.4] Synchronize selected program/policy/version and stale async refresh handling across `AppContext`, navigation, and dependent views.
 
 ### Phase 3 — Durable scenarios and business behavior
@@ -394,4 +394,4 @@ Each task below is deliberately small enough to review and validate independentl
 
 ## Recommended first foundational task
 
-**T001–T003 are complete.** The approved contract in `docs/data-ownership-contract.md` remains the implementation basis; applicant hard-delete versus archive behavior remains an explicit open decision. The next bounded task is **T004: Add dry-run-first relationship migration and indexes**. T003 added model and persistence support only; it did not run a migration, assign legacy records, or change persisted application data.
+**T001–T004 are complete.** The approved contract in `docs/data-ownership-contract.md` remains the implementation basis; applicant hard-delete versus archive behavior remains an explicit open decision. The next bounded task is **T005: Synchronize shared program selection and refresh state**. T004 added an explicit dry-run/apply migration for initial program schema snapshots and additive indexes; it did not run against the application's configured database or assign legacy applicant, policy, or evaluation records.

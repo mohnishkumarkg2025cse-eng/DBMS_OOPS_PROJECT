@@ -49,12 +49,15 @@ public class MainApp extends Application {
         // Views Instantiation
         PoliciesView policiesView = new PoliciesView(() ->
                 navigateTo(Sidebar.Destination.DASHBOARD));
+        ApplicantsView applicantsView = new ApplicantsView();
         DashboardView dashboardView = new DashboardView((policy, simulatedVersion) -> {
             navigateTo(Sidebar.Destination.POLICIES);
             policiesView.showNewVersionDraft(policy, simulatedVersion);
+        }, this::navigateTo, () -> {
+            navigateTo(Sidebar.Destination.APPLICANTS);
+            Platform.runLater(applicantsView::openAddApplicantDialog);
         });
-        ApplicantsView applicantsView = new ApplicantsView();
-        ProgramManagerView programManagerView = new ProgramManagerView();
+        ProgramManagerView programManagerView = new ProgramManagerView(this::navigateTo);
         EvaluationView evaluationView = new EvaluationView();
         ComparisonView comparisonView = new ComparisonView();
 

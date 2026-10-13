@@ -7,6 +7,7 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Aggregates;
 import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
 import org.bson.Document;
@@ -67,6 +68,22 @@ public class MongoPolicyRepository implements PolicyRepository {
             findById(document.getString("_id")).ifPresent(result::add);
         }
         return result;
+    }
+
+    @Override
+    public long countActivePolicies() {
+        Document result = policies.aggregate(List.of(
+                Aggregates.match(Filters.ne("archived", true)),
+                new Document("$lookup", new Document("from", PolicyVersionRepository.COLLECTION_NAME)
+                        .append("let", new Document("policyId", "$_id"))
+                        .append("pipeline", List.of(
+                                new Document("$match", new Document("$expr",
+                                        new Document("$eq", List.of("$policyId", "$$policyId")))),
+                                new Document("$limit", 1)))
+                        .append("as", "savedVersions")),
+                Aggregates.match(Filters.exists("savedVersions.0")),
+                Aggregates.count("count"))).first();
+        return result == null ? 0 : result.get("count", Number.class).longValue();
     }
 
     @Override

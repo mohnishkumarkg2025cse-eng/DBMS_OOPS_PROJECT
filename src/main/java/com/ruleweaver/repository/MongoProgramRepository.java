@@ -6,6 +6,7 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Filters;
 import com.ruleweaver.model.ProgramConfiguration;
 import org.bson.Document;
 
@@ -39,5 +40,17 @@ public final class MongoProgramRepository implements ProgramRepository {
     public List<ProgramConfiguration> findAll() {
         return collection.find().sort(Sorts.ascending("name"))
                 .map(ProgramDocumentMapper::fromDocument).into(new ArrayList<>());
+    }
+
+    @Override
+    public long countPrograms() {
+        return collection.countDocuments(Filters.not(Filters.regex("_id", "^template-")));
+    }
+
+    @Override
+    public long countActivePrograms() {
+        return collection.countDocuments(Filters.and(
+                Filters.not(Filters.regex("_id", "^template-")),
+                Filters.ne("archived", true)));
     }
 }

@@ -12,7 +12,6 @@ import com.ruleweaver.model.ProgramConfiguration;
 import com.ruleweaver.model.ProgramTemplate;
 import com.ruleweaver.repository.ProgramRepository;
 
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +30,14 @@ public final class ProgramService {
 
     public List<ProgramConfiguration> listActivePrograms() {
         return repository.findAll().stream().filter(program -> !program.isArchived()).toList();
+    }
+
+    public long countPrograms() {
+        return repository.countPrograms();
+    }
+
+    public long countActivePrograms() {
+        return repository.countActivePrograms();
     }
 
     public ProgramConfiguration findProgram(String id) {

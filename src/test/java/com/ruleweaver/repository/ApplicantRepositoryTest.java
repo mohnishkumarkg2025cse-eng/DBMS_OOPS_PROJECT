@@ -6,6 +6,8 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.ruleweaver.config.MongoConfig;
+import com.ruleweaver.model.ProgramConfiguration;
+import com.ruleweaver.model.ProgramTemplate;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,10 @@ public class ApplicantRepositoryTest {
     private static final String testRunId = UUID.randomUUID().toString();
     private static final String applicantId = "APP_TEST_" + testRunId;
     private static final String policyId = "POLICY_TEST_" + testRunId;
+    private static final String programId = "PROGRAM_TEST_" + testRunId;
+    private static final String archivedPolicyId = "ARCHIVED_POLICY_TEST_" + testRunId;
+    private static final String versionlessPolicyId = "VERSIONLESS_POLICY_TEST_" + testRunId;
+    private static final String evaluationId = "EVALUATION_TEST_" + testRunId;
 
     @BeforeEach
     public void setUp() {
@@ -58,7 +64,13 @@ public class ApplicantRepositoryTest {
             database.getCollection("applicants").deleteOne(Filters.eq("_id", applicantId));
             database.getCollection("policies").deleteOne(Filters.eq("_id", policyId));
             database.getCollection("policy_versions").deleteMany(Filters.eq("policyId", policyId));
+            database.getCollection("policies").deleteMany(Filters.in("_id",
+                    archivedPolicyId, versionlessPolicyId));
+            database.getCollection("policy_versions").deleteMany(Filters.in("policyId",
+                    archivedPolicyId, versionlessPolicyId));
+            database.getCollection("programs").deleteOne(Filters.eq("_id", programId));
             database.getCollection("evaluations").deleteMany(Filters.eq("applicantId", applicantId));
+            database.getCollection("evaluations").deleteOne(Filters.eq("_id", evaluationId));
         }
         if (mongoClient != null) {
             mongoClient.close();
@@ -69,11 +81,13 @@ public class ApplicantRepositoryTest {
 
     @Test
     public void testApplicantCRUD() {
+        long previousCount = applicantRepo.count();
         Document applicant = new Document("_id", applicantId)
                 .append("name", "Alice Test")
                 .append("gpa", 3.8)
                 .append("status", "ACTIVE");
         applicantRepo.save(applicant);
+        assertEquals(previousCount + 1, applicantRepo.count());
 
         Document retrieved = applicantRepo.findById(applicantId);
         assertNotNull(retrieved);
@@ -88,6 +102,36 @@ public class ApplicantRepositoryTest {
 
         applicantRepo.delete(applicantId);
         assertNull(applicantRepo.findById(applicantId));
+    }
+
+    @Test
+    public void testDashboardKpiRepositoryCounts() {
+        long applicantCount = applicantRepo.count();
+        applicantRepo.save(new Document("_id", applicantId).append("name", "KPI Applicant"));
+        assertEquals(applicantCount + 1, applicantRepo.count());
+
+        MongoProgramRepository programs = new MongoProgramRepository(database);
+        long programCount = programs.countPrograms();
+        programs.save(new ProgramConfiguration(programId, "KPI Program",
+                ProgramTemplate.CUSTOM, List.of()));
+        assertEquals(programCount + 1, programs.countPrograms());
+
+        MongoPolicyRepository policies = new MongoPolicyRepository(database);
+        long activePolicyCount = policies.countActivePolicies();
+        database.getCollection("policies").insertOne(new Document("_id", policyId)
+                .append("archived", false)
+                .append("activeVersionNumber", 0));
+        versionRepo.saveVersion(new Document("policyId", policyId).append("version", 1));
+        database.getCollection("policies").insertOne(new Document("_id", archivedPolicyId)
+                .append("archived", true));
+        versionRepo.saveVersion(new Document("policyId", archivedPolicyId).append("version", 1));
+        database.getCollection("policies").insertOne(new Document("_id", versionlessPolicyId)
+                .append("archived", false));
+        assertEquals(activePolicyCount + 1, policies.countActivePolicies());
+
+        long decisionCount = evalRepo.countDecisions();
+        evalRepo.save(new Document("_id", evaluationId).append("applicantId", applicantId));
+        assertEquals(decisionCount + 1, evalRepo.countDecisions());
     }
 
     @Test

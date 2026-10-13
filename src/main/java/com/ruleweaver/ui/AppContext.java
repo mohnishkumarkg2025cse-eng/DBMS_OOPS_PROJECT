@@ -63,6 +63,7 @@ public class AppContext {
     private final ObjectProperty<Policy> selectedPolicy = new SimpleObjectProperty<>();
     private final ObjectProperty<PolicyVersion> selectedVersion = new SimpleObjectProperty<>();
     private final ObjectProperty<PolicyVersion> activeVersion = new SimpleObjectProperty<>();
+    private final ObjectProperty<Applicant> selectedApplicant = new SimpleObjectProperty<>();
     private final ObjectProperty<com.ruleweaver.model.ProgramConfiguration> selectedProgram = new SimpleObjectProperty<>();
 
     private final BooleanProperty mongoOnline = new SimpleBooleanProperty(false);
@@ -340,6 +341,7 @@ public class AppContext {
     public ObjectProperty<Policy> selectedPolicyProperty() { return selectedPolicy; }
     public ObjectProperty<PolicyVersion> selectedVersionProperty() { return selectedVersion; }
     public ObjectProperty<PolicyVersion> activeVersionProperty() { return activeVersion; }
+    public ObjectProperty<Applicant> selectedApplicantProperty() { return selectedApplicant; }
     public ObjectProperty<com.ruleweaver.model.ProgramConfiguration> selectedProgramProperty() { return selectedProgram; }
 
     public BooleanProperty mongoOnlineProperty() { return mongoOnline; }

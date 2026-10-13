@@ -45,6 +45,7 @@ class PolicyServicePersistenceTest {
         assertEquals(2, progress.get());
         assertEquals(4, evaluations.findByPolicyAndVersion("policy-1", 1).size());
         assertEquals(4, evaluations.countByPolicyAndVersion("policy-1", 1));
+        assertEquals(4, evaluations.countDecisions());
         assertNotNull(firstRun.get(0).getEvaluationRunId());
         assertEquals(firstRun.get(0).getEvaluationRunId(), firstRun.get(1).getEvaluationRunId());
         assertNotEquals(firstRun.get(0).getEvaluationRunId(), secondRun.get(0).getEvaluationRunId());
@@ -123,13 +124,16 @@ class PolicyServicePersistenceTest {
     void archivingPolicyKeepsItsImmutableVersionSnapshots() {
         InMemoryPolicyRepository policies = new InMemoryPolicyRepository();
         PolicyService service = service(policies, new InMemoryEvaluationResultRepository());
+        policies.save(new Policy("policy-without-version", "Draft", "No saved version"));
         service.createPolicy("policy-1", "Policy", "Initial", List.of());
 
+        assertEquals(1, policies.countActivePolicies());
         assertTrue(policies.deleteById("policy-1"));
 
         Policy archived = policies.findById("policy-1").orElseThrow();
         assertTrue(archived.isArchived());
         assertEquals(1, archived.getVersions().size());
+        assertEquals(0, policies.countActivePolicies());
     }
 
     @Test

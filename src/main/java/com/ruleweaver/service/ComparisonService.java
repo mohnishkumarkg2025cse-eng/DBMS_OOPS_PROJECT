@@ -61,6 +61,8 @@ public class ComparisonService {
 
         List<EvaluationResult> latestV1Results = EvaluationAnalytics.latestPerApplicant(v1Results);
         List<EvaluationResult> latestV2Results = EvaluationAnalytics.latestPerApplicant(v2Results);
+        Set<String> ambiguousV1Applicants = applicantsWithAmbiguousTimestamps(v1Results);
+        Set<String> ambiguousV2Applicants = applicantsWithAmbiguousTimestamps(v2Results);
         Map<String, EvaluationResult> v2Map = new HashMap<>();
         for (EvaluationResult res : latestV2Results) {
             v2Map.put(res.getApplicantId(), res);
@@ -71,19 +73,19 @@ public class ComparisonService {
         String policyId = latestV1Results.isEmpty() ? "unknown" : latestV1Results.get(0).getPolicyId();
 
         ComparisonReport report = new ComparisonReport(policyId, v1Num, v2Num);
-        int comparedApplicants = (int) latestV1Results.stream()
-                .filter(result -> v2Map.containsKey(result.getApplicantId()))
-                .count();
-        report.setTotalApplicants(comparedApplicants);
-
         int v1Pass = 0, v1Fail = 0, v2Pass = 0, v2Fail = 0;
+        int comparedApplicants = 0;
 
         for (EvaluationResult res1 : latestV1Results) {
             EvaluationResult res2 = v2Map.get(res1.getApplicantId());
-            if (res2 == null) {
+            String applicantId = res1.getApplicantId();
+            if (res2 == null || !res1.hasDecisionOutcome() || !res2.hasDecisionOutcome()
+                    || ambiguousV1Applicants.contains(applicantId)
+                    || ambiguousV2Applicants.contains(applicantId)) {
                 continue;
             }
 
+            comparedApplicants++;
             if (res1.isOverallDecision()) v1Pass++; else v1Fail++;
             if (res2.isOverallDecision()) v2Pass++; else v2Fail++;
 
@@ -91,12 +93,30 @@ public class ComparisonService {
             report.addDiff(diff);
         }
 
+        report.setTotalApplicants(comparedApplicants);
         report.setV1PassedCount(v1Pass);
         report.setV1FailedCount(v1Fail);
         report.setV2PassedCount(v2Pass);
         report.setV2FailedCount(v2Fail);
 
         return report;
+    }
+
+    private Set<String> applicantsWithAmbiguousTimestamps(List<EvaluationResult> evaluations) {
+        Map<String, Integer> counts = new HashMap<>();
+        Set<String> missingTimestampApplicants = new HashSet<>();
+        for (EvaluationResult result : evaluations) {
+            String applicantId = result.getApplicantId();
+            if (applicantId == null) {
+                continue;
+            }
+            counts.merge(applicantId, 1, Integer::sum);
+            if (result.getEvaluatedOn() == null) {
+                missingTimestampApplicants.add(applicantId);
+            }
+        }
+        missingTimestampApplicants.removeIf(applicantId -> counts.getOrDefault(applicantId, 0) < 2);
+        return missingTimestampApplicants;
     }
 
     private ApplicantDiff buildApplicantDiff(String applicantId, String applicantName,

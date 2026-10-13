@@ -6,6 +6,7 @@ import com.ruleweaver.model.Policy;
 import com.ruleweaver.model.PolicyVersion;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public final class DashboardAnalytics {
@@ -46,6 +48,8 @@ public final class DashboardAnalytics {
 
     public record RuleImpact(String ruleName, int passedApplicants,
                              int failedApplicants, int assessedApplicants) { }
+
+    public record DailyDecisionCount(LocalDate date, int approved, int rejected) { }
 
     public record Baseline(Integer versionNumber, int sharedApplicants, int eligibleApplicants,
                            int changedDecisions, Double passRate,
@@ -108,6 +112,29 @@ public final class DashboardAnalytics {
                 .filter(result -> !result.isOverallDecision()).toList();
         return new Analysis(current, funnel, buildRuleImpacts(current), buildRuleImpacts(rejectedResults),
                 buildBaseline(evaluations, policies, selected, selectedCohort));
+    }
+
+    public List<DailyDecisionCount> dailyDecisionCounts(List<EvaluationResult> evaluations,
+                                                        LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null || endDate.isBefore(startDate)
+                || evaluations == null || evaluations.isEmpty()) {
+            return List.of();
+        }
+        Map<LocalDate, int[]> countsByDate = new TreeMap<>();
+        for (EvaluationResult result : evaluations) {
+            if (result == null || !result.hasDecisionOutcome() || result.getEvaluatedOn() == null) {
+                continue;
+            }
+            LocalDate date = result.getEvaluatedOn().toLocalDate();
+            if (date.isBefore(startDate) || date.isAfter(endDate)) {
+                continue;
+            }
+            int[] counts = countsByDate.computeIfAbsent(date, ignored -> new int[2]);
+            counts[result.isOverallDecision() ? 0 : 1]++;
+        }
+        return countsByDate.entrySet().stream()
+                .map(entry -> new DailyDecisionCount(entry.getKey(), entry.getValue()[0], entry.getValue()[1]))
+                .toList();
     }
 
     private static List<EvaluationResult> filterScope(List<EvaluationResult> source, List<Policy> policies,

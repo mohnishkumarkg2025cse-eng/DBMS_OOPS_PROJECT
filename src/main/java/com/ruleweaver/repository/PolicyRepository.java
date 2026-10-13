@@ -13,6 +13,9 @@ public interface PolicyRepository {
 
     List<Policy> findAll();
 
+    /** Counts non-archived policies that have at least one saved version. */
+    long countActivePolicies();
+
     /** Archives a policy without removing its saved versions or evaluation history. */
     boolean deleteById(String id);
 

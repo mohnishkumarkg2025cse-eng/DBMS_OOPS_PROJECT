@@ -31,6 +31,9 @@ class DatabaseInitializerSchemaTest {
                 properties.get("policyVersionId", Document.class).getList("bsonType", String.class));
         assertEquals(List.of("string", "null"),
                 properties.get("evaluationRunId", Document.class).getList("bsonType", String.class));
+        assertEquals(List.of("bool", "null"),
+                properties.get("overallDecision", Document.class).getList("bsonType", String.class));
+        assertNull(result.get("overallDecision"));
     }
 
     @Test

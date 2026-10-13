@@ -863,9 +863,14 @@ public class PoliciesView implements BaseView {
     public void onShow() {
         AppContext ctx = AppContext.getInstance();
         ctx.loadPoliciesAsync(() -> {
-            Policy sel = ctx.selectedPolicyProperty().get();
-            if (sel != null) {
-                policyListView.getSelectionModel().select(sel);
+            Policy selected = ctx.selectedPolicyProperty().get();
+            if (selected != null) {
+                Policy matching = ctx.getPolicies().stream()
+                        .filter(policy -> java.util.Objects.equals(policy.getId(), selected.getId()))
+                        .findFirst().orElse(null);
+                if (matching != null) {
+                    policyListView.getSelectionModel().select(matching);
+                }
             }
         });
     }

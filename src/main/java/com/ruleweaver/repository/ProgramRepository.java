@@ -9,4 +9,6 @@ public interface ProgramRepository {
     ProgramConfiguration save(ProgramConfiguration program);
     Optional<ProgramConfiguration> findById(String id);
     List<ProgramConfiguration> findAll();
+    long countPrograms();
+    long countActivePrograms();
 }

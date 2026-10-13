@@ -26,4 +26,19 @@ public final class InMemoryProgramRepository implements ProgramRepository {
     public List<ProgramConfiguration> findAll() {
         return new ArrayList<>(programs.values()).stream().map(ProgramConfiguration::copy).toList();
     }
+
+    @Override
+    public long countPrograms() {
+        return programs.values().stream()
+                .filter(program -> !program.getId().startsWith("template-"))
+                .count();
+    }
+
+    @Override
+    public long countActivePrograms() {
+        return programs.values().stream()
+                .filter(program -> !program.getId().startsWith("template-"))
+                .filter(program -> !program.isArchived())
+                .count();
+    }
 }

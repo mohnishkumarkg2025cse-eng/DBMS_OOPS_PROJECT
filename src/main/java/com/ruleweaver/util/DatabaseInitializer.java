@@ -35,6 +35,9 @@ public class DatabaseInitializer {
         // 5. Initialize evaluations collection with query performance indexes
         initEvaluationsCollection(db);
 
+        // 6. Additive indexes and revision storage for the opt-in migration workflow
+        DatabaseMigrationRunner.ensureIndexes(db);
+
         System.out.println("Database initialization completed successfully!");
     }
 
@@ -99,7 +102,7 @@ public class DatabaseInitializer {
                 .append("policyVersionId", new Document("bsonType", Arrays.asList("string", "null")))
                 .append("evaluationRunId", new Document("bsonType", Arrays.asList("string", "null")))
                 .append("policyVersion", new Document("bsonType", "int"))
-                .append("overallDecision", new Document("bsonType", "bool"))
+                .append("overallDecision", new Document("bsonType", Arrays.asList("bool", "null")))
                 .append("evaluatedOn", new Document("bsonType", Arrays.asList("string", "null")))
                 .append("conditionResults", new Document("bsonType", "array"));
         Document schema = new Document("bsonType", "object")

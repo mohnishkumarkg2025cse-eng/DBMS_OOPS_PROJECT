@@ -30,12 +30,26 @@ class ProgramServiceTest {
         service.ensureTemplates();
 
         assertEquals(7, service.listActivePrograms().size());
+        assertEquals(0, service.countPrograms());
         for (ProgramTemplate template : ProgramTemplate.values()) {
             ProgramConfiguration config = service.selectProgram(
                     "template-" + template.name().toLowerCase(java.util.Locale.ROOT));
             assertEquals(template, config.getTemplate());
             assertFalse(config.getFields().isEmpty());
         }
+    }
+
+    @Test
+    void countsConfiguredProgramsButExcludesTemplatesAndIncludesArchivedRecords() {
+        service.ensureTemplates();
+        ProgramConfiguration program = service.createProgram(
+                "program-counted", "Configured", ProgramTemplate.CUSTOM, List.of());
+
+        assertEquals(1, service.countPrograms());
+        assertEquals(1, service.countActivePrograms());
+        service.archive(program.getId());
+        assertEquals(1, service.countPrograms());
+        assertEquals(0, service.countActivePrograms());
     }
 
     @Test

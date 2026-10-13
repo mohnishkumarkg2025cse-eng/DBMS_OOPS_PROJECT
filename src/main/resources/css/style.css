@@ -240,6 +240,11 @@
     -fx-min-height: 196px;
 }
 
+.insight-center-page .kpi-card {
+    -fx-min-height: 0;
+    -fx-padding: 14px;
+}
+
 .kpi-accent-line {
     -fx-background-color: linear-gradient(to right, -color-accent, -color-accent-end);
     -fx-background-radius: 2px;
@@ -750,6 +755,288 @@
     -fx-text-fill: -color-text-primary;
 }
 
+.policy-health-card {
+    -fx-padding: 22px;
+}
+
+.policy-health-metric {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px;
+    -fx-min-width: 0;
+}
+
+.policy-health-metric-title {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.policy-health-metric-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.policy-health-active {
+    -fx-text-fill: -color-success;
+}
+
+.policy-health-draft {
+    -fx-text-fill: -color-warning;
+}
+
+.policy-health-attention {
+    -fx-text-fill: -color-danger;
+}
+
+.policy-health-versioned {
+    -fx-text-fill: -color-info;
+}
+
+.policy-health-metric-detail {
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-muted;
+}
+
+.policy-health-rows {
+    -fx-spacing: 6px;
+}
+
+.policy-health-table-header {
+    -fx-padding: 2px 12px 8px 12px;
+    -fx-border-color: transparent transparent -color-border-subtle transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.policy-health-column-title {
+    -fx-font-size: 9px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.policy-health-row {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-color: transparent transparent -color-border-subtle transparent;
+    -fx-border-radius: 8px;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 10px 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.policy-health-row:hover {
+    -fx-background-color: -color-card-hover;
+}
+
+.policy-health-row:focused {
+    -fx-border-color: -color-accent;
+}
+
+.policy-health-row-content {
+    -fx-alignment: CENTER_LEFT;
+    -fx-hgap: 8px;
+}
+
+.policy-health-name {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.policy-health-id,
+.policy-health-cell {
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.policy-health-id {
+    -fx-text-fill: -color-text-muted;
+}
+
+.decision-pipeline-card {
+    -fx-padding: 22px;
+}
+
+.pipeline-stage-card {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 14px;
+    -fx-min-height: 164px;
+    -fx-focus-traversable: true;
+}
+
+.pipeline-stage-title {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.pipeline-stage-value {
+    -fx-font-size: 24px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.pipeline-stage-description {
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-muted;
+}
+
+.pipeline-stage-meter {
+    -fx-pref-height: 4px;
+    -fx-max-height: 4px;
+}
+
+.pipeline-stage-icon {
+    -fx-text-fill: -color-text-secondary;
+}
+
+.pipeline-stage-arrow {
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.pipeline-accent-blue {
+    -fx-border-color: rgba(137, 180, 250, 0.35);
+}
+
+.pipeline-accent-blue .pipeline-stage-value,
+.pipeline-accent-blue .pipeline-stage-icon {
+    -fx-text-fill: -color-accent;
+}
+
+.pipeline-accent-amber {
+    -fx-border-color: rgba(249, 226, 175, 0.35);
+}
+
+.pipeline-accent-amber .pipeline-stage-value,
+.pipeline-accent-amber .pipeline-stage-icon {
+    -fx-text-fill: -color-warning;
+}
+
+.pipeline-accent-teal {
+    -fx-border-color: rgba(148, 226, 213, 0.35);
+}
+
+.pipeline-accent-teal .pipeline-stage-value,
+.pipeline-accent-teal .pipeline-stage-icon {
+    -fx-text-fill: -color-success;
+}
+
+.pipeline-accent-red {
+    -fx-border-color: rgba(243, 139, 168, 0.35);
+}
+
+.pipeline-accent-red .pipeline-stage-value,
+.pipeline-accent-red .pipeline-stage-icon {
+    -fx-text-fill: -color-danger;
+}
+
+.pipeline-stage-action {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+    -fx-cursor: hand;
+}
+
+.pipeline-stage-action:hover .pipeline-stage-card {
+    -fx-background-color: -color-card-hover;
+    -fx-border-color: -color-accent;
+}
+
+.pipeline-stage-action:focused .pipeline-stage-card,
+.pipeline-attention-row:focused {
+    -fx-border-color: -color-accent;
+}
+
+.pipeline-stage-action:focused,
+.pipeline-attention-row:focused {
+    -fx-background-color: -color-accent-tint;
+}
+
+.pipeline-offline-state {
+    -fx-background-color: -color-warning-bg;
+    -fx-background-radius: 12px;
+    -fx-padding: 5px 9px;
+    -fx-font-size: 9px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-warning;
+}
+
+.pipeline-attention-panel {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 16px;
+}
+
+.pipeline-attention-row {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-color: transparent transparent -color-border-subtle transparent;
+    -fx-border-radius: 8px;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 9px 10px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.pipeline-attention-row:hover {
+    -fx-background-color: -color-card-hover;
+}
+
+.pipeline-attention-row-content {
+    -fx-alignment: CENTER_LEFT;
+}
+
+.pipeline-attention-name {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.pipeline-attention-detail,
+.pipeline-current-state,
+.pipeline-empty-evaluations {
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.pipeline-empty-evaluations {
+    -fx-padding: 0 0 4px 0;
+    -fx-font-weight: 600;
+}
+
+.pipeline-misconfigured-state {
+    -fx-background-color: -color-warning-bg;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-warning-border;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 16px;
+}
+
+.pipeline-warning-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-primary;
+}
+
+.insight-quick-action {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10px 12px;
+}
+
 .dashboard-filters {
     -fx-padding: 16px;
 }
@@ -860,8 +1147,8 @@
 }
 
 .applicants-page {
-    -fx-spacing: 24px;
-    -fx-padding: 24px 32px 24px 32px;
+    -fx-spacing: 16px;
+    -fx-padding: 20px 24px 20px 24px;
 }
 
 .applicants-toolbar {
@@ -869,13 +1156,13 @@
 }
 
 .applicants-toolbar-controls {
-    -fx-hgap: 16px;
+    -fx-hgap: 12px;
     -fx-vgap: 8px;
 }
 
 .applicants-card {
-    -fx-spacing: 16px;
-    -fx-padding: 24px;
+    -fx-spacing: 10px;
+    -fx-padding: 16px;
 }
 
 .applicants-section-title {
@@ -892,7 +1179,7 @@
 .applicants-count {
     -fx-background-color: -color-elevated;
     -fx-background-radius: 12px;
-    -fx-padding: 6px 12px 6px 12px;
+    -fx-padding: 4px 10px 4px 10px;
     -fx-font-size: 12px;
     -fx-font-weight: 600;
     -fx-text-fill: -color-text-secondary;
@@ -912,7 +1199,7 @@
 
 .applicants-table .column-header {
     -fx-background-color: transparent;
-    -fx-padding: 12px 10px 12px 10px;
+    -fx-padding: 8px 10px 8px 10px;
 }
 
 .applicants-table .column-header .label {
@@ -923,12 +1210,13 @@
 }
 
 .applicants-table .table-cell {
-    -fx-padding: 8px 10px 8px 10px;
+    -fx-padding: 4px 8px 4px 8px;
     -fx-border-color: transparent transparent -color-border-subtle transparent;
     -fx-font-size: 12px;
 }
 
 .applicants-table .table-row-cell {
+    -fx-cell-size: 54px;
     -fx-background-color: -color-card;
 }
 
@@ -960,6 +1248,11 @@
     -fx-font-size: 13px;
     -fx-font-weight: 600;
     -fx-text-fill: -color-text-primary;
+}
+
+.applicant-skill-summary {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-secondary;
 }
 
 .applicant-primary-icon {
@@ -1217,6 +1510,24 @@
     -fx-bar-fill: -color-danger;
 }
 
+.default-color0.chart-series-line {
+    -fx-stroke: -color-success;
+    -fx-stroke-width: 2px;
+}
+
+.default-color1.chart-series-line {
+    -fx-stroke: -color-danger;
+    -fx-stroke-width: 2px;
+}
+
+.default-color0.chart-line-symbol {
+    -fx-background-color: -color-success, -color-card;
+}
+
+.default-color1.chart-line-symbol {
+    -fx-background-color: -color-danger, -color-card;
+}
+
 /* ==========================================================================
    14. Progress Bar and Condition Builder
    ========================================================================== */
@@ -1350,6 +1661,235 @@
     -fx-cell-size: 36px;
 }
 
+/* ==========================================================================
+   15. Programs & Applicants — Stage 1
+   ========================================================================== */
+
+.program-context-chip {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 999px;
+    -fx-padding: 5px 10px;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.program-kpi-strip {
+    -fx-alignment: CENTER;
+}
+
+.program-kpi-card {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 16px;
+    -fx-border-color: -color-card-border;
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-padding: 16px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.24), 10, 0, 0, 4);
+}
+
+.program-kpi-icon {
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-max-width: 40px;
+    -fx-max-height: 40px;
+    -fx-background-radius: 12px;
+}
+
+.program-kpi-icon.program-kpi-blue {
+    -fx-background-color: -color-accent-tint;
+}
+
+.program-kpi-icon.program-kpi-teal {
+    -fx-background-color: -color-success-bg;
+}
+
+.program-kpi-icon.program-kpi-amber {
+    -fx-background-color: -color-warning-bg;
+}
+
+.program-kpi-icon.program-kpi-blue .ikonli-font-icon {
+    -fx-icon-color: -color-accent;
+}
+
+.program-kpi-icon.program-kpi-teal .ikonli-font-icon {
+    -fx-icon-color: -color-success;
+}
+
+.program-kpi-icon.program-kpi-amber .ikonli-font-icon {
+    -fx-icon-color: -color-warning;
+}
+
+.program-kpi-card:hover,
+.program-kpi-card:focused {
+    -fx-background-color: -color-card-hover;
+    -fx-border-color: -color-accent;
+    -fx-translate-y: -2px;
+}
+
+.program-kpi-accent-line {
+    -fx-min-height: 3px;
+    -fx-max-height: 3px;
+    -fx-background-radius: 2px;
+}
+
+.program-kpi-blue .program-kpi-accent-line {
+    -fx-background-color: -color-accent;
+}
+
+.program-kpi-teal .program-kpi-accent-line {
+    -fx-background-color: -color-success;
+}
+
+.program-kpi-amber .program-kpi-accent-line {
+    -fx-background-color: -color-warning;
+}
+
+.program-kpi-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.program-kpi-value {
+    -fx-font-size: 30px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.program-kpi-context {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.program-tabs {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 999px;
+    -fx-padding: 4px;
+    -fx-spacing: 4px;
+    -fx-max-width: 340px;
+}
+
+.program-tab,
+.program-tab-active {
+    -fx-background-radius: 999px;
+    -fx-padding: 8px 16px;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
+}
+
+.program-tab {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.program-tab:hover {
+    -fx-background-color: -color-card-hover;
+}
+
+.program-tab-active {
+    -fx-background-color: -color-card;
+    -fx-text-fill: -color-text-primary;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.22), 5, 0, 0, 2);
+}
+
+.program-tab-count {
+    -fx-background-color: -color-card-hover;
+    -fx-background-radius: 999px;
+    -fx-padding: 2px 7px;
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.program-toolbar {
+    -fx-spacing: 8px;
+}
+
+.program-result-count {
+    -fx-padding: 0 4px;
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.program-filter-chips {
+    -fx-min-height: 0;
+}
+
+.program-filter-chip {
+    -fx-background-color: -color-accent-tint;
+    -fx-background-radius: 999px;
+    -fx-padding: 5px 10px;
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-accent;
+}
+
+.program-manager-page {
+    -fx-spacing: 12px;
+}
+
+.program-manager-page .program-kpi-card {
+    -fx-padding: 12px;
+    -fx-spacing: 7px;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+}
+
+.program-manager-page .program-kpi-value {
+    -fx-font-size: 24px;
+}
+
+.program-list-card,
+.program-details-card {
+    -fx-padding: 14px;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+}
+
+.program-list-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.program-list-metadata {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-muted;
+}
+
+.program-list-card .list-cell {
+    -fx-cell-size: 48px;
+    -fx-padding: 4px 8px;
+}
+
+.program-list-card .list-cell:filled:selected {
+    -fx-background-color: -color-accent-tint;
+    -fx-background-radius: 8px;
+}
+
+.program-status-pill {
+    -fx-background-radius: 999px;
+    -fx-padding: 3px 8px;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+}
+
+.program-status-active {
+    -fx-background-color: -color-success-bg;
+    -fx-text-fill: -color-success;
+}
+
+.program-status-archived {
+    -fx-background-color: -color-warning-bg;
+    -fx-text-fill: -color-warning;
+}
+
+.program-status-template {
+    -fx-background-color: -color-accent-tint;
+    -fx-text-fill: -color-accent;
+}
+
 .policy-version-table .table-cell {
     -fx-padding: 6px 8px;
 }
@@ -1398,4 +1938,254 @@
 
 .policy-success-icon {
     -fx-icon-color: -color-success;
+}
+
+/* ==========================================================================
+   16. Time Machine — saved history, configuration comparison and audit log
+   ========================================================================== */
+
+.time-machine-tabs {
+    -fx-background-color: transparent;
+}
+
+.time-machine-tabs > .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.time-machine-tabs > .tab-header-area {
+    -fx-padding: 0 0 8px 0;
+}
+
+.time-machine-tabs .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10px;
+    -fx-padding: 8px 14px;
+}
+
+.time-machine-tabs .tab:selected {
+    -fx-background-color: -color-card;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+}
+
+.time-machine-tabs .tab .tab-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.time-machine-tabs .tab:selected .tab-label {
+    -fx-text-fill: -color-text-primary;
+}
+
+.time-machine-tabs .tab-content-area {
+    -fx-background-color: transparent;
+}
+
+.time-machine-toolbar {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 12px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 12px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px 14px;
+}
+
+.time-machine-context {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 999px;
+    -fx-padding: 6px 10px;
+    -fx-font-size: 9px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.time-machine-search {
+    -fx-pref-height: 34px;
+    -fx-background-color: -color-bg-start;
+    -fx-background-radius: 8px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 0 10px;
+    -fx-font-size: 11px;
+}
+
+.time-machine-search:focused {
+    -fx-border-color: -color-accent;
+}
+
+.time-machine-filter-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-muted;
+}
+
+.time-machine-control-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.time-machine-panel {
+    -fx-padding: 14px;
+}
+
+.time-machine-detail-scroll,
+.time-machine-detail-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.time-machine-detail {
+    -fx-padding: 4px 2px 10px 2px;
+}
+
+.time-machine-detail-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.time-machine-applicant-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.time-machine-applicant-id {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-muted;
+}
+
+.time-machine-detail-value {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.time-machine-state-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-muted;
+}
+
+.time-machine-rule {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 8px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 8px 10px;
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.time-machine-config-card {
+    -fx-padding: 12px;
+}
+
+.time-machine-config-diff {
+    -fx-min-height: 190px;
+    -fx-padding: 14px;
+}
+
+.time-machine-config-diff .table-row-cell {
+    -fx-cell-size: 38px;
+}
+
+.time-machine-checkbox {
+    -fx-font-size: 10px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.time-machine-diff-added {
+    -fx-text-fill: -color-success;
+    -fx-font-weight: 700;
+}
+
+.time-machine-diff-removed {
+    -fx-text-fill: -color-danger;
+    -fx-font-weight: 700;
+}
+
+.time-machine-diff-modified {
+    -fx-text-fill: -color-warning;
+    -fx-font-weight: 700;
+}
+
+.time-machine-diff-unchanged {
+    -fx-text-fill: -color-text-muted;
+}
+
+.time-machine-summary {
+    -fx-background-color: -color-card;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.time-machine-summary-item {
+    -fx-padding: 8px 14px;
+    -fx-border-color: transparent -color-border-subtle transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.time-machine-summary-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+.time-machine-summary-blue {
+    -fx-text-fill: -color-accent;
+}
+
+.time-machine-summary-red {
+    -fx-text-fill: -color-danger;
+}
+
+.time-machine-summary-teal {
+    -fx-text-fill: -color-success;
+}
+
+.time-machine-recorded-comparison {
+    -fx-spacing: 6px;
+}
+
+.time-machine-condition-card {
+    -fx-background-color: -color-elevated;
+    -fx-background-radius: 8px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 8px;
+}
+
+.time-machine-outcome-pass {
+    -fx-text-fill: -color-success;
+    -fx-font-weight: 700;
+}
+
+.time-machine-outcome-fail {
+    -fx-text-fill: -color-danger;
+    -fx-font-weight: 700;
+}
+
+.time-machine-outcome-unknown {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-weight: 600;
+}
+
+.time-machine-tabs .table-row-cell {
+    -fx-cell-size: 42px;
+}
+
+.time-machine-tabs .split-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.time-machine-tabs .split-pane-divider {
+    -fx-background-color: -color-border-subtle;
+    -fx-padding: 0 1px;
 }

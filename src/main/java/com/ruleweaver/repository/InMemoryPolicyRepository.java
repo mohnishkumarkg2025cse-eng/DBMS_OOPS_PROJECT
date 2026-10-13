@@ -45,6 +45,14 @@ public class InMemoryPolicyRepository implements PolicyRepository {
     }
 
     @Override
+    public long countActivePolicies() {
+        return storage.values().stream()
+                .filter(policy -> !policy.isArchived())
+                .filter(policy -> !policy.getVersions().isEmpty())
+                .count();
+    }
+
+    @Override
     public boolean deleteById(String id) {
         if (id == null || id.isBlank()) {
             return false;

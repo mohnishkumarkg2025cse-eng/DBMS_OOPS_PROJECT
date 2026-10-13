@@ -89,6 +89,11 @@ public class EvaluationRepository implements EvaluationResultRepository {
     }
 
     @Override
+    public long countDecisions() {
+        return collection.countDocuments();
+    }
+
+    @Override
     public long countByPolicyAndVersion(String policyId, int versionNumber) {
         String policyVersionId = policyId + "_v" + versionNumber;
         return collection.countDocuments(Filters.or(

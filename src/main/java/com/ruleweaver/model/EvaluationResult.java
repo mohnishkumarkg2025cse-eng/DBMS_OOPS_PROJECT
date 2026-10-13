@@ -24,7 +24,7 @@ public class EvaluationResult {
     private String policyVersionId;
     private int policyVersionNumber;
     private String evaluationRunId;
-    private boolean overallDecision;
+    private Boolean overallDecision;
     private List<ConditionResult> conditionResults;
     private Map<String, Object> applicantInputSnapshot;
     private String engineSemanticsVersion;
@@ -132,10 +132,18 @@ public class EvaluationResult {
     }
 
     public boolean isOverallDecision() {
+        return Boolean.TRUE.equals(overallDecision);
+    }
+
+    public boolean hasDecisionOutcome() {
+        return overallDecision != null;
+    }
+
+    public Boolean getDecisionOutcome() {
         return overallDecision;
     }
 
-    public void setOverallDecision(boolean overallDecision) {
+    public void setOverallDecision(Boolean overallDecision) {
         this.overallDecision = overallDecision;
     }
 
@@ -210,14 +218,18 @@ public class EvaluationResult {
         }
         sb.append("--------------------------------------------------\n");
         sb.append(String.format("-> Final Decision: %s%s\n",
-                overallDecision ? "Eligible (Accepted)" : "Not Eligible (Rejected)",
-                overallDecision ? " (All criteria met)" : " (" + getFailedConditions().size() + " condition(s) failed)"));
+                Boolean.TRUE.equals(overallDecision) ? "Eligible (Accepted)"
+                        : overallDecision == null ? "Unknown" : "Not Eligible (Rejected)",
+                Boolean.TRUE.equals(overallDecision) ? " (All criteria met)"
+                        : overallDecision == null ? "" : " (" + getFailedConditions().size()
+                                + " condition(s) failed)"));
         return sb.toString();
     }
 
     @Override
     public String toString() {
         return String.format("EvaluationResult[applicant=%s, policy=%s_v%d, decision=%s]",
-                applicantName, policyId, policyVersionNumber, overallDecision ? "PASS" : "FAIL");
+                applicantName, policyId, policyVersionNumber,
+                overallDecision == null ? "UNKNOWN" : overallDecision ? "PASS" : "FAIL");
     }
 }

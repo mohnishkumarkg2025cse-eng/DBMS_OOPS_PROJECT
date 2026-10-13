@@ -13,5 +13,7 @@ public interface EvaluationResultRepository {
 
     List<EvaluationResult> findAll();
 
+    long countDecisions();
+
     long countByPolicyAndVersion(String policyId, int versionNumber);
 }

@@ -9,10 +9,40 @@ RuleWeaver X is a JavaFX desktop application for defining versioned decision pol
 | Stack | Java 17, JavaFX 20.0.1, Maven, MongoDB Java sync driver 5.12.0, JUnit 5.9.0 |
 | Current branch | `main` |
 | Latest commit | `e451428` — `Integrate local UI updates with latest main` |
-| Working tree | Dashboard Stage 2 changes from the prior stage remain uncommitted; Applicants Update 3 source, shared CSS, progress, and changelog changes are also uncommitted. |
+| Working tree | Time Machine history/comparison/audit UI changes are uncommitted alongside Insight Center, Dashboard Stage 2, Applicants Update 3, Policies redesign, and separate T004 migration/index work. |
 | Main source/test layout | `src/main/java`, `src/main/resources`, `src/test/java` |
 
 ## B. Completed Features
+
+### Time Machine — historical policy and decision inspection
+
+- [x] Inspected `Capture.PNG`, `Capture2.PNG`, and the actual lowercase `capture3.PNG`; added version-history inspection, side-by-side saved-configuration comparison, and a stored decision log within the existing Time Machine route.
+- [x] The history and comparison panels display saved policy-version fields/conditions only. The decision log loads persisted results asynchronously by selected policy/version, filters recorded Approved/Rejected/Unknown outcomes, and exposes the stored applicant snapshot, condition results, and actual/required values when present.
+- [x] Added explicit empty, loading, error/retry, and offline states. Replay and publisher-change summaries are not represented as available because no matching persisted audit/change data is exposed by the current model.
+- [x] Corrected comparison counting so unknown outcomes are not presented as rejections and repeated histories with missing timestamps are omitted when their latest record cannot be established; added regression tests.
+- [x] Verified `mvn clean compile` **BUILD SUCCESS** (98 production source files) and `mvn clean test` **BUILD SUCCESS** (94 tests, 0 failures, 0 errors, 0 skipped). `git diff --check` passed.
+- [x] Launched JavaFX in offline mode against a loopback-only MongoDB endpoint and visually inspected the existing Time Machine route at 1366x768. The Version History, Compare Versions, and Decision Log tabs all render; navigation to Time Machine and switching between these tabs were exercised.
+- [ ] Live Atlas data, saved-record selection, comparison results, and populated audit filters remain unverified because the offline database has no policies, versions, or evaluations. The three workflows displayed their empty/selection states; no records were seeded.
+- [x] Launch output showed an existing `.search-bar` stylesheet `ClassCastException` warning in shared CSS; no stylesheet parse errors or missing-resource messages were observed. This unrelated selector was not changed.
+
+### Milestone status — Programs & Applicants visual shell and KPI wiring
+
+- [x] Verified the design reference image is readable and the repo worktree contains existing uncommitted teammate work that was preserved.
+- [x] Reused the existing `ProgramManagerView` layout, program filters, dark-navy styling, and service/repository contracts without rewriting unrelated screens.
+- [x] Added the visual shell for the Programs & Applicants screen, including the page header, KPI strip, tabs, search/filter toolbar, and filter-chip state handling.
+- [x] Wired KPI totals to repo-backed counts for total programs, total applicants, and active programs with async loading and explicit unavailable/error states.
+- [x] Verified the build: `mvn clean compile -q` completed successfully; `mvn clean test -q` completed successfully. JavaFX native-loader warnings were logged, but no build or test failures occurred.
+- [x] Stopped at this milestone boundary; later stages (cards/table view, drawers, dialogs, and motion polish) remain unimplemented in this checkpoint.
+
+### Programs & Applicants — usability and functionality fixes
+
+- [x] Applicant rows now use a fixed 54px cell size; name/email are compact and ellipsized, skills stay on one line with a full-value tooltip, and numeric columns sort numerically.
+- [x] Applicant search now covers name, email, and skills case-insensitively after trimming whitespace. Added pure-Java coverage for those search cases.
+- [x] Applicant edit preserves the existing program association and custom attributes. Save/delete refresh errors are surfaced; Mongo update/delete throw when the target record does not exist, preventing success-shaped no-ops.
+- [x] Programs render in a compact, fixed-height list with name, template/category, field count, and lifecycle badge. Search/status filtering and existing service-backed create, rename, duplicate, archive, select, and schema-edit paths are retained; unsupported deletion was not added.
+- [x] Verified `mvn clean compile` **BUILD SUCCESS** (97 production sources) and `mvn test` **BUILD SUCCESS** (89 tests, 0 failures, 0 errors, 0 skipped). `ApplicantRepositoryTest` ran all 4 tests, including Mongo repository CRUD; new applicant-search tests passed (2/2), and existing program filter/sort and service tests passed.
+- [ ] JavaFX visual checks for row density, window resizing, scrolling, and end-user create/edit/delete/program actions still need manual verification. No production records were manually changed.
+
 
 These items have implementation evidence and automated test evidence. Test evidence does not imply that the JavaFX UI was manually exercised.
 
@@ -167,12 +197,78 @@ The latest Maven run also reported JavaFX effective-model warnings, the `-source
 - **Integrated product plan — T001 baseline/action inventory:** Inspected current UI handlers and documented observed behavior, gaps, exact owners, cross-program scope risks, demo-data copy mismatch, and required workflow tests in `docs/ui-action-inventory.md`. The code was not changed. The previously recorded `mvn clean compile` and `mvn clean test` results (86 production sources; 61 tests passing, 0 skipped) are carried forward, not rerun for this documentation-only task. Manual UI behavior remains unverified.
 - **Integrated product plan — T002 data contract:** Drafted `docs/data-ownership-contract.md` after inspecting current models, mappers, repositories, and `PolicyService`. The user approved isolated legacy/unassigned records, immutable schema revisions, saved evaluation context, rebuildable metrics, and dry-run-first migrations as the implementation contract. Applicant hard-delete versus archive remains open. No source/schema or persisted data was changed.
 - **Integrated product plan — T003 relationships and snapshots:** Added nullable `Applicant.programId`, `ProgramConfiguration.schemaRevision`, immutable `ProgramSchemaRevision` records with in-memory and Mongo repositories, and compatible program-schema snapshot links on policy versions and evaluation history. BSON mappers preserve unassigned/missing legacy values (schema revision `0`) and round-trip applicant input snapshots and evaluation semantics metadata; old policy-version records inherit program ownership from their parent when loaded through repository lookups. Added mapper and in-memory repository tests. No migration or persisted user-data changes were executed; applicant deletion behavior remains unchanged. `mvn clean compile` **BUILD SUCCESS** (92 production sources); `mvn clean test` **BUILD SUCCESS** (67 tests, 0 failures, 0 errors, 0 skipped). The three `ApplicantRepositoryTest` cases passed. Maven reported the existing JavaFX model/module-path, MongoDB SLF4J, JDK native-access, and Applicants unchecked-operation warnings. No UI was launched; visual behavior remains **Needs manual check**. Program/schema lifecycle wiring, legacy migration, and additional program/evaluation indexes remain for subsequent tasks.
+- **Integrated product plan — T004 migration and indexes:** Added `DatabaseMigrationRunner.preview()` (read-only default) and explicit `apply()`, with compatibility preflight, collection pre/post counts, legacy-unassigned counts, a durable completion marker, and retry-safe creation of immutable revision 1 snapshots for programs still at schema revision 0. Conflicting snapshots or dangling positive revision pointers block apply; the runner does not infer or rewrite applicant, policy, policy-version, or evaluation history. Added additive program/status, policy/archive, schema-revision, policy-version, evaluation/run/version indexes to the explicit migration and `DatabaseInitializer`. Migration integration tests use fresh UUID-named temporary databases and drop only those test-created databases. The production/configured application database was not migrated. `mvn clean test` **BUILD SUCCESS** — 69 tests, 0 failures, 0 errors, 0 skipped. Mongo-dependent execution was confirmed: all 3 existing `ApplicantRepositoryTest` cases and both new `DatabaseMigrationRunnerTest` cases ran against MongoDB; the migration tests verified dry-run non-mutation, applied and repeated migration, count/history preservation, unassigned legacy records, index creation, and conflict refusal. `git diff --check` passed. Maven emitted JavaFX effective-model/module-path, MongoDB SLF4J, JDK native-access, and existing Applicants unchecked-operation warnings. **Before any real apply:** take/verify a backup, inspect `preview()` report and conflicts, then call `apply()` explicitly; no production migration has run. Manual verification remains required for a real operator-reviewed dry run and startup/index behavior. Next task: T005.
 
 | Screen stage | Implementation status | Visual result |
 |---|---|---|
 | Sidebar and header | Theme foundation and shell stage implemented | **Needs manual check** |
-| Dashboard | Stage 2 redesign implemented; awaiting review | **Needs manual check** |
+| Dashboard / Insight Center | Stage 2 and Insight Center visual layout implemented; awaiting review | **Needs manual check** |
 | Applicants | Update 3 redesign implemented; awaiting review | **Needs manual check** |
 | Policies | Redesign implemented; awaiting review | **Needs manual check** |
 | Evaluation | Not started; awaiting earlier stages | **Needs manual check** |
 | Time Machine | Not started; awaiting earlier stages | **Needs manual check** |
+
+## O. Insight Center Visual Layout
+
+- Reworked the existing Dashboard screen into the Insight Center layout without replacing its analytics, filters, asynchronous refresh/error states, rule-outcome analysis, or Impact Lab.
+- Added four KPI cards for configured program records, applicant records, saved evaluation decisions, and active policies; all values are sourced from persisted repositories or the existing offline application state.
+- Replaced the overview chart with a JavaFX approval/rejection line chart grouped by date over the last 30 days. The chart uses only recognized, timestamped saved decisions; unknown outcomes and undated results are omitted. When no recent valid results are available, it shows an explicit empty state.
+- Renamed the existing evaluation-history panel to Recent Activity, added a Data Quality Warnings panel that explicitly reports checks are unavailable (no validated findings source exists yet), and added quick-access buttons wired through the existing view router.
+- Updated the shared CSS for the compact KPI layout and chart series colors. No schema, evaluation engine, or unrelated module changes were made for this milestone.
+- Verification: `mvn -DskipTests clean compile` **BUILD SUCCESS** — 94 production sources compiled. Maven reported the existing JavaFX model/module-path and Applicants unchecked-operation warnings. `git diff --check` passed.
+- JavaFX rendering/navigation have not been manually exercised; visual behavior remains **Needs manual check**.
+
+## P. Insight Center KPI Data Integration
+
+- Connected `Total Programs` to a repository count of configured program records, excluding built-in template records and including archived programs. The MongoDB count executes on the dashboard worker thread.
+- Connected `Total Applicants` to MongoDB `countDocuments()` when connected; offline mode uses the already-loaded applicant record list. It does not derive this metric from evaluation history.
+- Connected `Decisions Made` to a count of persisted evaluation-result/decision records, so repeated decisions for one applicant are counted as separate saved decisions. MongoDB uses `countDocuments()`; the existing full evaluation read remains only for dashboard analytics and recent activity.
+- Defined `Active Policies` as non-archived policies with at least one persisted version, matching the current policy lifecycle (the active-version fallback selects the latest saved version). MongoDB counts using an indexed server-side lookup limited to one matching version; archived and versionless policies are excluded.
+- KPI totals are global and are not changed by dashboard filters. They show a skeleton while loading, a literal zero with an empty-data label when empty, and the existing retryable error state on load failure. No historical comparison/delta was added.
+- Added in-memory domain tests and MongoDB integration assertions for record counts, built-in template exclusion, archived program inclusion, archived/versionless policy exclusion, and multiple saved decisions per applicant.
+- Verification: `mvn clean test` **BUILD SUCCESS** — 71 tests, 0 failures, 0 errors, 0 skipped. MongoDB applicant and migration integration tests ran. Production and test sources compiled; pre-existing JavaFX module-path, SLF4J/native-access, and Applicants unchecked-operation warnings remain. `git diff --check` passed.
+- JavaFX visual behavior remains **Needs manual check**.
+
+## Q. Insight Center Decision Trend
+
+- Implemented the approval/rejection trend as a JavaFX line chart with date labels, date/evaluation axes, a visible legend, and the application's real outcome labels: `Eligible` and `Rejected`.
+- Aggregates saved evaluation decisions by local date over the last 30 days. Only known Boolean decisions with valid timestamps are included; pending/unknown outcomes, missing or malformed timestamps, and dates outside the range are excluded.
+- Handles legacy named outcomes using the recognized domain aliases and preserves unrecognized outcomes as unavailable instead of treating them as rejections. Offset and BSON date timestamps are normalized for local-date grouping.
+- Dashboard evaluation loading and chart aggregation remain in the existing background task; chart updates happen on JavaFX task success. No date-range selector or synthetic series/data was added.
+- Updated the existing evaluation collection validator to accept a nullable `overallDecision`, allowing unknown legacy outcomes to remain unknown through mapper persistence. This does not add a collection or required field.
+- Added tests for daily grouping, range filtering, omission of unknown/undated decisions, legacy outcome mapping, supported timestamp shapes, conflicting/unknown values, and validator compatibility.
+- Verification: `mvn clean test` **BUILD SUCCESS** — 74 tests, 0 failures, 0 errors, 0 skipped; 94 production sources and 21 test sources compiled. MongoDB-backed applicant and migration integration tests ran. Existing JavaFX model/module-path, MongoDB logging/native-access, and Applicants unchecked-operation warnings remain. `git diff --check` passed.
+- The JavaFX chart has not been manually launched/rendered; visual verification remains **Needs manual check**.
+
+## R. Insight Center Policy Health Monitor
+
+- Added a responsive Policy Health section to the existing Insight Center with compact lifecycle summary cards, a recent policy list, restrained semantic status badges, and a View all policies action.
+- Loads the policy records and their saved versions through the existing `PolicyRepository.findAll()` on the dashboard's background task. The view shows up to six most recently version-updated policies; clicking a row opens that policy in the existing Policy Studio details view.
+- Derives Active from non-archived policies with saved versions and Draft from non-archived policies without saved versions. Versioned counts any policy with saved versions; archived records remain visible with their archived status.
+- Last updated is derived from saved version timestamps; missing timestamps are shown as unavailable, and policies without versions show no current version/date. No policy health score or validation findings are synthesized.
+- The model has no validation/attention result, so Needs Attention is explicitly unavailable rather than reported as zero. Lifecycle summary cards are informational because the Policies screen has no corresponding filtered views.
+- Added loading skeletons, an explicit no-policies empty state, and the existing retryable error treatment. Policy row selection resolves the clicked policy to the repository-loaded instance before displaying details.
+- Verification: `mvn clean test` **BUILD SUCCESS** — 74 tests, 0 failures, 0 errors, 0 skipped; all 94 production sources and 21 test sources compiled. `git diff --check` passed. Existing Maven JavaFX module-path, MongoDB logging/native-access, and Applicants unchecked-operation warnings remain.
+- JavaFX rendering and row navigation have not been manually exercised; visual/interaction verification remains **Needs manual check**.
+
+## S. Insight Center Decision Pipeline
+
+- Added the existing Decision Pipeline card to the responsive dashboard grid and refresh it when the dashboard is shown, when the selected program/policy/version changes, when applicant state changes, and when saved results change.
+- The pipeline scope uses the selected policy and version plus the dashboard's optional program filter; evaluation-run and decision filters do not alter it because outcome counts use each applicant's latest saved result across runs.
+- The pure `PipelineCalculator` reports applicant totals in the selected program scope (or the full repository when no program is selected), applicants awaiting a stored result, distinct applicants with a result, and latest known approved/rejected outcomes. It excludes other policy versions, supports legacy policy-version IDs, and never treats missing results as rejections. Ambiguous latest outcomes make completed/approved/rejected counts unavailable rather than violating their count invariant.
+- Failed/incomplete is explicitly unavailable because `EvaluationResult` has no evaluation status/error field. Zero-condition versions show a warning and suppress metrics. Attention rows contain only applicant display name, policy, and awaiting badge; no personal contact, score, or timestamp fields are available in the applicant model.
+- Summary and attention data load in separate background Tasks with skeleton, retryable error/toast, offline, no-policy, no-applicant, and no-evaluation states. Only the total-applicants card navigates to an existing unfiltered Applicants view; other stages explain that matching filtered destinations do not exist. Applicant rows use existing Applicants navigation/selection.
+- Added pure calculator coverage for empty cohorts, no results, approved/rejected/mixed outcomes, distinct latest-run counts, policy-version isolation, legacy version IDs, misconfigured versions, unknown outcomes, and the approved + rejected = completed / awaiting = total - completed invariants. Added in-memory repository coverage for locating legacy results by policy-version ID.
+- Observed test fixture cross-check: expected and calculated values were Total 3, Awaiting 1, Completed 2, Approved 1, Rejected 1. No configured MongoDB/demo records were read or seeded for this verification.
+- Verification: `mvn clean compile` **BUILD SUCCESS** — 95 production sources compiled. `mvn clean test` **BUILD SUCCESS** — 85 tests, 0 failures, 0 errors, 3 Atlas-gated applicant repository tests skipped. `git diff --check` passed. Existing JavaFX module-path/effective-model and Applicants unchecked-operation warnings remain.
+- No JavaFX window or live Atlas-backed pipeline was exercised. Stage values against persisted/demo data, row/card navigation, loading/empty/error/offline states, keyboard interaction, and 1100x700 / 1600x900 rendering remain **Needs manual check**.
+
+## T. Programs & Applicants — Stage 1
+
+- Updated the existing Program Manager page header and added a three-card KPI strip for Total Programs, Total Applicants, and Active Programs. The page still uses the separate `ProgramConfiguration` domain model; these are not Policy records.
+- Total Programs counts configured program records excluding built-in `template-*` records and includes archived programs. Total Applicants counts applicant documents, independently of evaluations. Active Programs counts configured records that are not archived and excludes built-in templates. Program counts use repository queries; applicant counts use MongoDB `countDocuments()`. When MongoDB is offline or a load fails, affected KPI values explicitly show `Unavailable` rather than implying zero.
+- KPI values load in a background JavaFX Task with an explicit failure log/toast and unavailable values on error. KPI cards have definition tooltips and navigate/filter only to existing destinations supported by the screen.
+- Added a Programs/Applicants segmented navigation control using the existing Applicants route, program search, status and template filters, removable filter chips, alphabetical sort, result count, and Clear filters. Existing program creation and field/schema management behavior remains in place.
+- Added repository-level active-program counts for MongoDB and in-memory stores and service coverage that confirms archive changes the active count without changing total count. Extracted program search/status/type matching and name sorting into a pure-Java criteria helper with unit tests.
+- Verification: `mvn clean compile` **BUILD SUCCESS** — 96 production sources compiled. `mvn clean test` **BUILD SUCCESS** — 87 tests, 0 failures, 0 errors, 0 skipped. Mongo-dependent repository/migration tests ran in this environment. `git diff --check` passed.
+- This is **Stage 1 only**; the JavaFX app was not launched and no live data values or screen interactions were observed. KPI values against hand-counted live data, tab navigation, filters/chips/sort, 1100x700 and 1600x900 layout, offline/error states, and keyboard/focus behavior remain **Needs manual check**. Programs card/table views, detail drawer, applicant detail drawer, and additional UI polish remain for later stages.

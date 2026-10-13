@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.Map;
 
 class EvaluationResultDocumentMapperTest {
@@ -74,5 +77,40 @@ class EvaluationResultDocumentMapperTest {
         assertTrue(restored.getApplicantInputSnapshot().isEmpty());
         assertNull(restored.getEngineSemanticsVersion());
         assertTrue(restored.isOverallDecision());
+        assertTrue(restored.hasDecisionOutcome());
+    }
+
+    @Test
+    void preservesUnknownDecisionAndInvalidOrMissingTimestampAsUnavailable() {
+        EvaluationResult pending = EvaluationResultDocumentMapper.fromDocument(
+                new Document("decision", "PENDING").append("evaluatedOn", "not-a-date"));
+
+        assertFalse(pending.hasDecisionOutcome());
+        assertNull(pending.getDecisionOutcome());
+        assertNull(pending.getEvaluatedOn());
+        assertNull(EvaluationResultDocumentMapper.toDocument(pending).get("overallDecision"));
+
+        EvaluationResult missing = EvaluationResultDocumentMapper.fromDocument(
+                new Document("decision", "UNKNOWN"));
+        assertFalse(missing.hasDecisionOutcome());
+        assertNull(missing.getEvaluatedOn());
+
+        EvaluationResult conflicting = EvaluationResultDocumentMapper.fromDocument(
+                new Document("overallDecision", "PENDING").append("decision", "ELIGIBLE"));
+        assertFalse(conflicting.hasDecisionOutcome());
+    }
+
+    @Test
+    void acceptsDateAndOffsetTimestampsUsedByPersistedRecords() {
+        Instant instant = Instant.parse("2026-10-12T10:15:30Z");
+        EvaluationResult bsonDate = EvaluationResultDocumentMapper.fromDocument(
+                new Document("overallDecision", true).append("evaluatedOn", Date.from(instant)));
+        EvaluationResult offsetDate = EvaluationResultDocumentMapper.fromDocument(
+                new Document("overallDecision", false)
+                        .append("evaluatedOn", "2026-10-12T12:15:30+02:00"));
+
+        LocalDateTime expected = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        assertEquals(expected, bsonDate.getEvaluatedOn());
+        assertEquals(expected, offsetDate.getEvaluatedOn());
     }
 }

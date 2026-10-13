@@ -49,8 +49,11 @@ public class InMemoryEvaluationResultRepository implements EvaluationResultRepos
 
     @Override
     public List<EvaluationResult> findByPolicyAndVersion(String policyId, int versionNumber) {
+        String policyVersionId = policyId + "_v" + versionNumber;
         return storage.values().stream()
-                .filter(r -> Objects.equals(r.getPolicyId(), policyId) && r.getPolicyVersionNumber() == versionNumber)
+                .filter(r -> (Objects.equals(r.getPolicyId(), policyId)
+                        && r.getPolicyVersionNumber() == versionNumber)
+                        || Objects.equals(r.getPolicyVersionId(), policyVersionId))
                 .collect(Collectors.toList());
     }
 
@@ -62,5 +65,10 @@ public class InMemoryEvaluationResultRepository implements EvaluationResultRepos
     @Override
     public List<EvaluationResult> findAll() {
         return new ArrayList<>(storage.values());
+    }
+
+    @Override
+    public long countDecisions() {
+        return storage.size();
     }
 }
