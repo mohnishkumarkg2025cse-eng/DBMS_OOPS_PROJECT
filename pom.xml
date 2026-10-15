@@ -53,6 +53,13 @@
             <artifactId>mongodb-driver-sync</artifactId>
             <version>5.12.0</version>
         </dependency>
+         
+         <!-- MongoDB JDBC Driver -->
+<dependency>
+    <groupId>org.mongodb</groupId>
+    <artifactId>mongodb-jdbc</artifactId>
+    <version>4.0.0</version>
+</dependency>
 
         <!-- JUnit 5 Testing Framework -->
         <dependency>
