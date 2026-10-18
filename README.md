@@ -43,6 +43,8 @@ In traditional software systems, business rules (such as loan approvals, grant e
 * **Modular Layered Architecture:** Strict separation of concerns between presentation (JavaFX), business logic (Services/Engine), domain models, and data access (Repositories).
 * **Robust Domain Model:** Built using clean Object-Oriented Software Engineering principles (Encapsulation, Polymorphism, Abstraction, and Single Responsibility).
 * **Automated Eligibility Processing:** Evaluates applicants against active policies and outputs pass/fail statuses with granular rule trace logs.
+* **Transparent Decision Explanations:** Provides rule-level evaluation details to help users understand why an applicant passed or failed specific eligibility criteria.
+* **Evaluation History:** Stores decision records for reviewing previous eligibility assessments and supporting traceability.
 
 ---
 
