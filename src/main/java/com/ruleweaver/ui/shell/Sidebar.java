@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Modern 240px Sidebar with glowing active navigation indicators and MongoDB status chip.
+ * Modern 240px Sidebar with glowing active navigation indicators and MongoDB
+ * status chip.
  */
 public class Sidebar extends VBox {
 
@@ -35,8 +36,13 @@ public class Sidebar extends VBox {
             this.iconName = iconName;
         }
 
-        public String getTitle() { return title; }
-        public String getIconName() { return iconName; }
+        public String getTitle() {
+            return title;
+        }
+
+        public String getIconName() {
+            return iconName;
+        }
     }
 
     private final Map<Destination, HBox> navItemMap = new HashMap<>();

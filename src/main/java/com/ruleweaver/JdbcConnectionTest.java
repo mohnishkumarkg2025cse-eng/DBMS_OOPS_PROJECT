@@ -9,7 +9,7 @@ import java.util.Properties;
 public class JdbcConnectionTest {
 
     public static void main(String[] args) {
-
+        System.out.println("JDBC TEST STARTED");
         String url = System.getenv("MONGODB_JDBC_URL");
         String username = System.getenv("MONGODB_JDBC_USER");
         String password = System.getenv("MONGODB_JDBC_PASSWORD");

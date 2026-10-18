@@ -29,7 +29,8 @@ import javafx.util.StringConverter;
 
 /**
  * Screen 2: Policy & Version Manager (Master-Detail).
- * Features dynamic rule creation, snapshot versioning, and immutable policy inspection.
+ * Features dynamic rule creation, snapshot versioning, and immutable policy
+ * inspection.
  */
 public class PoliciesView implements BaseView {
 
@@ -49,7 +50,8 @@ public class PoliciesView implements BaseView {
     private Policy displayedPolicy;
 
     public PoliciesView() {
-        this(() -> { });
+        this(() -> {
+        });
     }
 
     public PoliciesView(Runnable openWhatIfSimulator) {
@@ -93,8 +95,8 @@ public class PoliciesView implements BaseView {
         pageScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         rootPane.setMinSize(0, 0);
         rootPane.getChildren().add(pageScroll);
-        rootPane.widthProperty().addListener((observable, oldWidth, width) ->
-                layoutMasterDetail(masterDetail, masterCol, detailCol, width.doubleValue()));
+        rootPane.widthProperty().addListener((observable, oldWidth, width) -> layoutMasterDetail(masterDetail,
+                masterCol, detailCol, width.doubleValue()));
 
         setupSelectionHandlers();
     }
@@ -221,8 +223,7 @@ public class PoliciesView implements BaseView {
                 "No policies yet",
                 "Create a policy to define versioned evaluation criteria.",
                 null,
-                null
-        ));
+                null));
         VBox.setVgrow(policyListView, Priority.ALWAYS);
 
         card.getChildren().addAll(masterTitle, policyListView);
@@ -346,17 +347,18 @@ public class PoliciesView implements BaseView {
         versionHistoryTable.setPrefHeight(170);
 
         TableColumn<PolicyVersion, String> number = new TableColumn<>("Version");
-        number.setCellValueFactory(cell ->
-                new SimpleStringProperty(String.valueOf(cell.getValue().getVersionNumber())));
+        number.setCellValueFactory(
+                cell -> new SimpleStringProperty(String.valueOf(cell.getValue().getVersionNumber())));
         TableColumn<PolicyVersion, String> date = new TableColumn<>("Date");
         date.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getCreatedAt() == null
-                ? "Unknown" : cell.getValue().getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))));
+                ? "Unknown"
+                : cell.getValue().getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))));
         TableColumn<PolicyVersion, String> note = new TableColumn<>("Note");
         note.setCellValueFactory(cell -> new SimpleStringProperty(
                 cell.getValue().getDescription() == null ? "" : cell.getValue().getDescription()));
         TableColumn<PolicyVersion, String> rules = new TableColumn<>("Rules");
-        rules.setCellValueFactory(cell ->
-                new SimpleStringProperty(String.valueOf(cell.getValue().getConditions().size())));
+        rules.setCellValueFactory(
+                cell -> new SimpleStringProperty(String.valueOf(cell.getValue().getConditions().size())));
         TableColumn<PolicyVersion, String> evaluations = new TableColumn<>("Evaluations");
         evaluations.setCellValueFactory(cell -> new SimpleStringProperty(
                 String.valueOf(evaluationCounts.getOrDefault(cell.getValue().getVersionNumber(), 0L))));
@@ -368,7 +370,8 @@ public class PoliciesView implements BaseView {
                 super.updateItem(version, empty);
                 setGraphic(empty || version == null ? null
                         : version.getVersionNumber() == currentPolicyActiveVersion()
-                        ? StatusBadge.pass("ACTIVE") : null);
+                                ? StatusBadge.pass("ACTIVE")
+                                : null);
             }
         });
         versionHistoryTable.getColumns().setAll(List.of(number, date, note, rules, evaluations, active));
@@ -402,8 +405,8 @@ public class PoliciesView implements BaseView {
     private void displayPolicy(Policy policy) {
         displayedPolicy = policy;
         policyTitleLabel.setText(policy.getName());
-        policyDescLabel.setText(policy.getDescription() != null && !policy.getDescription().isEmpty() 
-                ? policy.getDescription() 
+        policyDescLabel.setText(policy.getDescription() != null && !policy.getDescription().isEmpty()
+                ? policy.getDescription()
                 : "No description specified for this policy.");
         policyIdBadge.setText("ID: " + policy.getId());
 
@@ -475,7 +478,8 @@ public class PoliciesView implements BaseView {
                 displayPolicy(selected);
             });
             ctx.showToast(Toast.success("Active Version Set",
-                    "Policy '" + refreshed.getName() + "' version " + version.getVersionNumber() + " is now active.", null));
+                    "Policy '" + refreshed.getName() + "' version " + version.getVersionNumber() + " is now active.",
+                    null));
         });
         task.setOnFailed(event -> {
             Throwable failure = task.getException();
@@ -503,8 +507,8 @@ public class PoliciesView implements BaseView {
         List<Condition> previous = version.getVersionNumber() <= 1 || displayedPolicy == null
                 ? List.of()
                 : displayedPolicy.getVersion(version.getVersionNumber() - 1)
-                .map(PolicyVersion::getConditions)
-                .orElse(List.of());
+                        .map(PolicyVersion::getConditions)
+                        .orElse(List.of());
         renderDiffChips(diffChips, previous, conditions, version.getVersionNumber());
         if (!diffChips.getChildren().isEmpty()) {
             conditionsContainer.getChildren().add(diffChips);
@@ -516,8 +520,7 @@ public class PoliciesView implements BaseView {
                     "No Conditions Defined",
                     "This policy version contains 0 criteria. All applicants vacuously pass.",
                     null,
-                    null
-            ));
+                    null));
             return;
         }
 
@@ -541,8 +544,8 @@ public class PoliciesView implements BaseView {
             ruleInfo.getChildren().addAll(name, type);
             HBox.setHgrow(ruleInfo, Priority.ALWAYS);
 
-            StatusBadge badge = c instanceof NumericCondition 
-                    ? StatusBadge.info("Numeric") 
+            StatusBadge badge = c instanceof NumericCondition
+                    ? StatusBadge.info("Numeric")
                     : (c instanceof SkillCondition ? StatusBadge.pass("Skill") : StatusBadge.warning("Composite"));
 
             row.getChildren().addAll(num, ruleInfo, badge);
@@ -570,14 +573,19 @@ public class PoliciesView implements BaseView {
         ComboBox<ProgramConfiguration> programChoice = new ComboBox<>();
         programChoice.setPromptText("Legacy policy (no program schema)");
         programChoice.setConverter(new StringConverter<>() {
-            @Override public String toString(ProgramConfiguration program) {
+            @Override
+            public String toString(ProgramConfiguration program) {
                 return program == null ? "" : program.getName();
             }
-            @Override public ProgramConfiguration fromString(String value) { return null; }
+
+            @Override
+            public ProgramConfiguration fromString(String value) {
+                return null;
+            }
         });
         AppContext context = AppContext.getInstance();
         PolicyRuleBuilder ruleBuilder = new PolicyRuleBuilder(null, List.of());
-        context.runAsync(() -> {
+        context.getExecutor().execute(() -> {
             List<ProgramConfiguration> available = context.getProgramService().listActivePrograms();
             Platform.runLater(() -> {
                 programChoice.getItems().setAll(available);
@@ -586,7 +594,8 @@ public class PoliciesView implements BaseView {
                     available.stream().filter(program -> program.getId().equals(selected.getId()))
                             .findFirst().ifPresent(programChoice::setValue);
                 }
-                if (programChoice.getValue() == null) ruleBuilder.setProgram(null);
+                if (programChoice.getValue() == null)
+                    ruleBuilder.setProgram(null);
             });
         });
 
@@ -595,8 +604,7 @@ public class PoliciesView implements BaseView {
         ruleBuilder.setValidityListener(valid -> saveBtn.setDisable(
                 !valid || nameInput.getText() == null || nameInput.getText().trim().isEmpty()));
         nameInput.textProperty().addListener((obs, oldVal, newVal) -> ruleBuilder.refresh());
-        programChoice.valueProperty().addListener((obs, oldValue, newValue) ->
-                ruleBuilder.setProgram(newValue));
+        programChoice.valueProperty().addListener((obs, oldValue, newValue) -> ruleBuilder.setProgram(newValue));
         ruleBuilder.setImpactPreviewBase(new PolicyVersion("draft-preview", "draft-preview", 1,
                 "Unsaved draft", List.of()));
 
@@ -622,21 +630,19 @@ public class PoliciesView implements BaseView {
             String policyId = "POL-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
             String description = descInput.getText().trim();
             String programId = programChoice.getValue() == null ? null : programChoice.getValue().getId();
-            AppContext.getInstance().runAsync(() -> {
+            AppContext.getInstance().getExecutor().execute(() -> {
                 Policy policy = AppContext.getInstance().getPolicyService().createPolicy(
                         policyId,
                         name,
                         description,
                         programId,
-                        conditions
-                );
+                        conditions);
                 Platform.runLater(() -> {
                     rootPane.getChildren().remove(modalBackdrop);
                     AppContext.getInstance().showToast(Toast.success(
                             "Policy Created",
                             "Policy '" + policy.getName() + "' created with " + conditions.size() + " rules.",
-                            null
-                    ));
+                            null));
                     AppContext.getInstance().loadPoliciesAsync(() -> {
                         policyListView.getSelectionModel().select(policy);
                     });
@@ -653,8 +659,7 @@ public class PoliciesView implements BaseView {
                 new VBox(4, new Label("Program schema"), programChoice),
                 new Label("Initial conditions"),
                 ruleBuilder,
-                btnRow
-        );
+                btnRow);
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
@@ -690,7 +695,7 @@ public class PoliciesView implements BaseView {
     }
 
     private void showNewVersionModal(Policy policy, List<Condition> initialConditions,
-                                    int sourceVersionNumber, String initialNote) {
+            int sourceVersionNumber, String initialNote) {
         StackPane modalBackdrop = new StackPane();
         modalBackdrop.getStyleClass().add("modal-backdrop");
 
@@ -713,17 +718,17 @@ public class PoliciesView implements BaseView {
         Button saveBtn = new Button("Save Version " + nextVerNum);
         saveBtn.getStyleClass().add("btn-primary");
         ruleBuilder.setValidityListener(valid -> saveBtn.setDisable(!valid));
-        ruleBuilder.setValidationListener(errors ->
-                refreshVersionDiff(diffChips, previousRules, ruleBuilder, nextVerNum, errors));
+        ruleBuilder.setValidationListener(
+                errors -> refreshVersionDiff(diffChips, previousRules, ruleBuilder, nextVerNum, errors));
         refreshVersionDiff(diffChips, previousRules, ruleBuilder, nextVerNum, ruleBuilder.getValidationErrors());
-        PolicyVersion impactBase = policy.getVersion(sourceVersionNumber).orElseGet(() ->
-                policy.getLatestVersion().orElseGet(() ->
-                        new PolicyVersion(policy.getId() + "_preview", policy.getId(), 1,
+        PolicyVersion impactBase = policy.getVersion(sourceVersionNumber)
+                .orElseGet(() -> policy.getLatestVersion()
+                        .orElseGet(() -> new PolicyVersion(policy.getId() + "_preview", policy.getId(), 1,
                                 "Draft impact baseline", List.of())));
         ruleBuilder.setImpactPreviewBase(impactBase);
         AppContext context = AppContext.getInstance();
         if (policy.getProgramId() != null) {
-            context.runAsync(() -> {
+            context.getExecutor().execute(() -> {
                 ProgramConfiguration program = context.getProgramService().findProgram(policy.getProgramId());
                 Platform.runLater(() -> ruleBuilder.setProgram(program));
             });
@@ -742,19 +747,18 @@ public class PoliciesView implements BaseView {
             }
             List<Condition> conditions = ruleBuilder.getConditions();
 
-            AppContext.getInstance().runAsync(() -> {
+            AppContext.getInstance().getExecutor().execute(() -> {
                 PolicyVersion newVersion = AppContext.getInstance().getPolicyService().createNewVersion(
                         policy.getId(),
                         descInput.getText().trim(),
-                        conditions
-                );
+                        conditions);
                 Platform.runLater(() -> {
                     rootPane.getChildren().remove(modalBackdrop);
                     AppContext.getInstance().showToast(Toast.success(
                             "New Version Created",
-                            "Created Version " + newVersion.getVersionNumber() + " with " + conditions.size() + " rules.",
-                            null
-                    ));
+                            "Created Version " + newVersion.getVersionNumber() + " with " + conditions.size()
+                                    + " rules.",
+                            null));
                     displayPolicy(policy);
                     versionComboBox.setValue(newVersion);
                 });
@@ -769,8 +773,7 @@ public class PoliciesView implements BaseView {
                 new Label("Version criteria (drafted from v" + sourceVersionNumber + ")"),
                 ruleBuilder,
                 diffChips,
-                btnRow
-        );
+                btnRow);
 
         modalBackdrop.getChildren().add(box);
         rootPane.getChildren().add(modalBackdrop);
@@ -778,7 +781,7 @@ public class PoliciesView implements BaseView {
     }
 
     private void renderDiffChips(FlowPane chips, List<Condition> previousRules, List<Condition> currentRules,
-                                 int currentVersionNumber) {
+            int currentVersionNumber) {
         chips.getChildren().clear();
         if (previousRules == null) {
             chips.setVisible(false);
@@ -825,8 +828,8 @@ public class PoliciesView implements BaseView {
     }
 
     private void refreshVersionDiff(FlowPane chips, List<Condition> previousRules,
-                                    PolicyRuleBuilder ruleBuilder, int versionNumber,
-                                    List<String> validationErrors) {
+            PolicyRuleBuilder ruleBuilder, int versionNumber,
+            List<String> validationErrors) {
         chips.getChildren().clear();
         if (versionNumber <= 1) {
             chips.getChildren().add(StatusBadge.info("Initial version"));

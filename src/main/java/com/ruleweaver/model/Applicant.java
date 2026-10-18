@@ -1,6 +1,10 @@
 package com.ruleweaver.model;
 
 import java.util.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ruleweaver.config.MySqlConnectionFactory;
+import com.ruleweaver.model.Applicant;
 
 /**
  * Represents an applicant being evaluated against business policies.
@@ -27,7 +31,7 @@ public class Applicant {
     }
 
     public Applicant(String id, String name, String email, double gpa, int interviewScore,
-                     List<String> skills, Map<String, Object> customAttributes) {
+            List<String> skills, Map<String, Object> customAttributes) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -132,7 +136,8 @@ public class Applicant {
 
     /**
      * Resolves a numeric field value dynamically by field name.
-     * Supports built-in properties ("gpa", "interviewScore") and custom numeric attributes.
+     * Supports built-in properties ("gpa", "interviewScore") and custom numeric
+     * attributes.
      *
      * @param fieldName the field identifier (case-insensitive)
      * @return Double value of the field, or null if not found/not numeric
@@ -144,7 +149,8 @@ public class Applicant {
         String normalized = fieldName.trim().toLowerCase();
         if (normalized.equals("gpa")) {
             return this.gpa;
-        } else if (normalized.equals("interviewscore") || normalized.equals("interview_score") || normalized.equals("interview")) {
+        } else if (normalized.equals("interviewscore") || normalized.equals("interview_score")
+                || normalized.equals("interview")) {
             return (double) this.interviewScore;
         } else if (customAttributes.containsKey(fieldName)) {
             Object val = customAttributes.get(fieldName);

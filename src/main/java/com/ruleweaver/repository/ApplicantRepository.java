@@ -40,7 +40,8 @@ public class ApplicantRepository {
 
     // Retrieve all applicants (for JavaFX Dashboard)
     public List<Document> findAll() {
-        return collection.find().into(new ArrayList<>());
+        return collection.find(Filters.ne("_sync_deleted", true))
+                .into(new ArrayList<>());
     }
 
     public long count() {

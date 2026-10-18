@@ -47,8 +47,7 @@ public class MainApp extends Application {
         viewRouter = new ViewRouter(centerPane);
 
         // Views Instantiation
-        PoliciesView policiesView = new PoliciesView(() ->
-                navigateTo(Sidebar.Destination.DASHBOARD));
+        PoliciesView policiesView = new PoliciesView(() -> navigateTo(Sidebar.Destination.DASHBOARD));
         ApplicantsView applicantsView = new ApplicantsView();
         DashboardView dashboardView = new DashboardView((policy, simulatedVersion) -> {
             navigateTo(Sidebar.Destination.POLICIES);
@@ -74,8 +73,7 @@ public class MainApp extends Application {
                     navigateTo(dest);
                 },
                 this::handleSeedDemoData,
-                this::confirmClearDemoData
-        );
+                this::confirmClearDemoData);
 
         // Header
         header = new AppHeader(() -> {
@@ -84,7 +82,8 @@ public class MainApp extends Application {
                 return;
             }
             BaseView cur = viewRouter.getCurrentView();
-            if (cur != null) cur.onShow();
+            if (cur != null)
+                cur.onShow();
             appContext.showToast(Toast.info("Data Refreshed", "Screen state reloaded successfully.", null));
         });
 
@@ -153,7 +152,8 @@ public class MainApp extends Application {
                     handleSeedDemoData();
                 } else {
                     BaseView cur = viewRouter.getCurrentView();
-                    if (cur != null) cur.onShow();
+                    if (cur != null)
+                        cur.onShow();
                 }
             });
         }, error -> {
@@ -161,15 +161,29 @@ public class MainApp extends Application {
                     "MongoDB Notice",
                     "Could not load applicants from MongoDB Atlas: "
                             + com.ruleweaver.config.MongoConfig.sanitize(error.getMessage()),
-                    null
-            ));
+                    null));
         });
     }
 
     private void navigateTo(Sidebar.Destination destination) {
-        viewRouter.navigateTo(destination);
-        if (header != null) {
-            header.setTitle(destination.getTitle(), getSubtitleFor(destination));
+        System.out.println("CLICKED DESTINATION: " + destination);
+
+        System.out.println("SQL CONSOLE REGISTERED: "
+                + (viewRouter.getCurrentView() != null));
+
+        try {
+            viewRouter.navigateTo(destination);
+
+            System.out.println("CURRENT VIEW: "
+                    + (viewRouter.getCurrentView() == null
+                            ? "null"
+                            : viewRouter.getCurrentView().getClass().getName()));
+
+            if (header != null) {
+                header.setTitle(destination.getTitle(), getSubtitleFor(destination));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -183,8 +197,7 @@ public class MainApp extends Application {
             appContext.showToast(Toast.info(
                     "Offline Mode",
                     "MongoDB was not connected. Use Refresh to connect and load applicant data.",
-                    null
-            ));
+                    null));
         });
     }
 
@@ -198,10 +211,10 @@ public class MainApp extends Application {
             appContext.showToast(Toast.success(
                     "Demo Data Loaded",
                     "Seeded candidates (Alice, Bob, Carol, Dave, Eve) and Policies (v1 & v2).",
-                    null
-            ));
+                    null));
             BaseView cur = viewRouter.getCurrentView();
-            if (cur != null) cur.onShow();
+            if (cur != null)
+                cur.onShow();
         });
     }
 
@@ -214,8 +227,7 @@ public class MainApp extends Application {
                 javafx.scene.control.Alert.AlertType.CONFIRMATION,
                 "Remove the demo applicants, their saved evaluations, and the POL-INTERN policy and versions?",
                 javafx.scene.control.ButtonType.CANCEL,
-                javafx.scene.control.ButtonType.OK
-        );
+                javafx.scene.control.ButtonType.OK);
         confirmation.setTitle("Clear Demo Data");
         confirmation.setHeaderText("Clear seeded records");
         confirmation.initOwner((Stage) header.getScene().getWindow());
@@ -224,21 +236,30 @@ public class MainApp extends Application {
         confirmation.showAndWait().filter(javafx.scene.control.ButtonType.OK::equals).ifPresent(button -> {
             SampleDataSeeder.clearDemoData(() -> {
                 appContext.showToast(Toast.success(
-                        "Demo Data Cleared", "Seeded applicants, evaluations, and policy versions were removed.", null));
+                        "Demo Data Cleared", "Seeded applicants, evaluations, and policy versions were removed.",
+                        null));
                 BaseView current = viewRouter.getCurrentView();
-                if (current != null) current.onShow();
+                if (current != null)
+                    current.onShow();
             });
         });
     }
 
     private String getSubtitleFor(Sidebar.Destination dest) {
         return switch (dest) {
-            case DASHBOARD -> "Real-time decision distribution, candidate velocity, and version metrics";
-            case APPLICANTS -> "Manage applicant pool and evaluate eligibility credentials";
-            case PROGRAMS -> "Configure program templates and applicant field schemas";
-            case POLICIES -> "Configure governance criteria, version snapshots, and threshold rules";
-            case EVALUATION -> "Evaluate candidate pool against governance policies with complete explainability";
-            case COMPARISON -> "Simulate policy shifts and inspect candidate decision flips between version epochs";
+            case DASHBOARD ->
+                "Real-time decision distribution, candidate velocity, and version metrics";
+            case APPLICANTS ->
+                "Manage applicant pool and evaluate eligibility credentials";
+            case PROGRAMS ->
+                "Configure program templates and applicant field schemas";
+            case POLICIES ->
+                "Configure governance criteria, version snapshots, and threshold rules";
+            case EVALUATION ->
+                "Evaluate candidate pool against governance policies with complete explainability";
+            case COMPARISON ->
+                "Simulate policy shifts and inspect candidate decision flips between version epochs";
+
         };
     }
 

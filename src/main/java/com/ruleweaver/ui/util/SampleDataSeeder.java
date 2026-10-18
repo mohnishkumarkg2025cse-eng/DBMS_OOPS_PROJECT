@@ -14,6 +14,7 @@ import org.bson.Document;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Seeds and clears the standard demonstration dataset.
@@ -26,7 +27,7 @@ public class SampleDataSeeder {
 
     public static void seedDemoData(Runnable onComplete) {
         AppContext ctx = AppContext.getInstance();
-        ctx.runAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             ApplicantRepository applicantRepository = ctx.getApplicantRepository();
             if (applicantRepository != null) {
                 List<Applicant> applicants = Arrays.asList(
@@ -89,7 +90,7 @@ public class SampleDataSeeder {
 
     public static void clearDemoData(Runnable onComplete) {
         AppContext ctx = AppContext.getInstance();
-        ctx.runAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             ApplicantRepository applicantRepository = ctx.getApplicantRepository();
             if (applicantRepository != null) {
                 DEMO_APPLICANT_IDS.forEach(applicantRepository::delete);

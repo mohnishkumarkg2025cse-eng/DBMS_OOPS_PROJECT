@@ -1,5 +1,6 @@
 package com.ruleweaver.ui.views;
 
+import com.ruleweaver.repository.ApplicantMySqlRepository;
 import com.ruleweaver.model.Applicant;
 import com.ruleweaver.ui.AppContext;
 import com.ruleweaver.ui.adapter.ApplicantDocumentMapper;
@@ -239,8 +240,8 @@ public class ApplicantsView implements BaseView {
                     nameLbl.setMaxWidth(Double.MAX_VALUE);
                     nameLbl.setTextOverrun(OverrunStyle.ELLIPSIS);
 
-                    Label emailLbl = new Label(applicant.getEmail() != null && !applicant.getEmail().isEmpty() 
-                            ? applicant.getEmail() 
+                    Label emailLbl = new Label(applicant.getEmail() != null && !applicant.getEmail().isEmpty()
+                            ? applicant.getEmail()
                             : "ID: " + (applicant.getId() != null ? applicant.getId() : "N/A"));
                     emailLbl.getStyleClass().add("applicant-secondary");
                     emailLbl.setWrapText(false);
@@ -262,8 +263,8 @@ public class ApplicantsView implements BaseView {
 
         // Column 2: GPA
         TableColumn<Applicant, Double> gpaCol = new TableColumn<>("GPA");
-        gpaCol.setCellValueFactory(param ->
-                new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getGpa()));
+        gpaCol.setCellValueFactory(
+                param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getGpa()));
         gpaCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(Double val, boolean empty) {
@@ -284,8 +285,8 @@ public class ApplicantsView implements BaseView {
 
         // Column 3: Interview Score
         TableColumn<Applicant, Integer> scoreCol = new TableColumn<>("Interview score");
-        scoreCol.setCellValueFactory(param ->
-                new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getInterviewScore()));
+        scoreCol.setCellValueFactory(
+                param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getInterviewScore()));
         scoreCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(Integer val, boolean empty) {
@@ -306,7 +307,8 @@ public class ApplicantsView implements BaseView {
 
         // Column 4: Skills Pill Chips
         TableColumn<Applicant, List<String>> skillsCol = new TableColumn<>("Skills");
-        skillsCol.setCellValueFactory(param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getSkills()));
+        skillsCol.setCellValueFactory(
+                param -> new javafx.beans.property.SimpleObjectProperty<>(param.getValue().getSkills()));
         skillsCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(List<String> skills, boolean empty) {
@@ -386,7 +388,11 @@ public class ApplicantsView implements BaseView {
         actionCol.setMinWidth(88);
         actionCol.setPrefWidth(104);
 
-        tableView.getColumns().addAll(nameCol, gpaCol, scoreCol, skillsCol, actionCol);
+        tableView.getColumns().add(nameCol);
+        tableView.getColumns().add(gpaCol);
+        tableView.getColumns().add(scoreCol);
+        tableView.getColumns().add(skillsCol);
+        tableView.getColumns().add(actionCol);
 
         // Hook observable list to FilteredList and SortedList
         AppContext ctx = AppContext.getInstance();
@@ -481,8 +487,8 @@ public class ApplicantsView implements BaseView {
         Label scoreError = new Label();
         scoreError.getStyleClass().add("error-text");
 
-        String existingSkills = (isEdit && existing.getSkills() != null) 
-                ? String.join(", ", existing.getSkills()) 
+        String existingSkills = (isEdit && existing.getSkills() != null)
+                ? String.join(", ", existing.getSkills())
                 : "";
         TextField skillsInput = new TextField(existingSkills);
         skillsInput.setPromptText("Skills comma-separated (e.g. Java, SQL, Spring)");
@@ -492,8 +498,7 @@ public class ApplicantsView implements BaseView {
                 formField("Email", emailInput, null),
                 formField("GPA (scale 0-10) *", gpaInput, gpaError),
                 formField("Interview Score (0-100) *", scoreInput, scoreError),
-                formField("Competencies & Skills", skillsInput, null)
-        );
+                formField("Competencies & Skills", skillsInput, null));
 
         FlowPane btnRow = new FlowPane(12, 8);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
@@ -552,14 +557,16 @@ public class ApplicantsView implements BaseView {
                 valid = false;
             }
 
-            if (!valid) return;
+            if (!valid)
+                return;
 
             // Parse skills
             List<String> skills = new ArrayList<>();
             if (!skillsInput.getText().trim().isEmpty()) {
                 String[] parts = skillsInput.getText().split(",");
                 for (String p : parts) {
-                    if (!p.trim().isEmpty()) skills.add(p.trim());
+                    if (!p.trim().isEmpty())
+                        skills.add(p.trim());
                 }
             }
 
@@ -595,40 +602,74 @@ public class ApplicantsView implements BaseView {
         return field;
     }
 
-    private void saveApplicantAsync(Applicant applicant, boolean isEdit, Runnable onSuccess) {
-        AppContext ctx = AppContext.getInstance();
-        loadingOverlay.show(isEdit ? "Updating candidate in MongoDB Atlas..." : "Saving candidate to MongoDB Atlas...");
+    private void saveApplicantAsync(
+            Applicant applicant, boolean isEdit, Runnable onSuccess) {
 
-        ctx.runAsync(() -> {
+        AppContext ctx = AppContext.getInstance();
+
+        loadingOverlay.show(
+                isEdit ? "Updating applicant..." : "Saving applicant...");
+
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 Document doc = ApplicantDocumentMapper.toDocument(applicant);
+
                 if (isEdit) {
                     ctx.getApplicantRepository().update(applicant.getId(), doc);
                 } else {
                     ctx.getApplicantRepository().save(doc);
+
+                    // MongoDB generates the ID for a newly inserted document.
+                    Object mongoId = doc.get("_id");
+                    if (mongoId != null) {
+                        applicant.setId(mongoId.toString());
+                    }
+                }
+
+                // MongoDB save succeeded; attempt MySQL synchronization.
+                try {
+                    new ApplicantMySqlRepository().upsert(applicant);
+                } catch (Exception mysqlError) {
+                    AppContext.logFailure(
+                            "Applicant saved in MongoDB but MySQL sync failed",
+                            mysqlError);
                 }
 
                 Platform.runLater(() -> {
                     loadingOverlay.hide();
+
                     ctx.showToast(Toast.success(
                             isEdit ? "Candidate Updated" : "Candidate Saved",
-                            "Applicant '" + applicant.getName() + "' saved to MongoDB.",
-                            null
-                    ));
-                    if (onSuccess != null) onSuccess.run();
-                    ctx.loadApplicantsAsync(this::updateRowCount, error -> ctx.showToast(Toast.error(
-                            "Applicant Refresh Failed",
-                            error.getMessage() == null ? "Saved changes, but could not refresh applicants."
-                                    : com.ruleweaver.config.MongoConfig.sanitize(error.getMessage()),
-                            null)));
+                            "Applicant '" + applicant.getName()
+                                    + "' saved to MongoDB.",
+                            null));
+
+                    if (onSuccess != null)
+                        onSuccess.run();
+
+                    ctx.loadApplicantsAsync(
+                            this::updateRowCount,
+                            error -> ctx.showToast(Toast.error(
+                                    "Applicant Refresh Failed",
+                                    error.getMessage() == null
+                                            ? "Saved changes, but could not refresh applicants."
+                                            : com.ruleweaver.config.MongoConfig
+                                                    .sanitize(error.getMessage()),
+                                    null)));
                 });
+
             } catch (Exception e) {
                 AppContext.logFailure("Applicant save failed", e);
+
                 Platform.runLater(() -> {
                     loadingOverlay.hide();
-                    ctx.showToast(Toast.error("Database Save Failed",
-                            e.getMessage() == null ? "Could not save applicant changes."
-                                    : com.ruleweaver.config.MongoConfig.sanitize(e.getMessage()), null));
+                    ctx.showToast(Toast.error(
+                            "Database Save Failed",
+                            e.getMessage() == null
+                                    ? "Could not save applicant changes."
+                                    : com.ruleweaver.config.MongoConfig
+                                            .sanitize(e.getMessage()),
+                            null));
                 });
             }
         });
@@ -637,12 +678,12 @@ public class ApplicantsView implements BaseView {
     private void confirmDelete(Applicant applicant) {
         ConfirmDialog dialog = new ConfirmDialog(
                 "Delete Candidate Profile",
-                "Are you sure you want to permanently delete '" + applicant.getName() + "'? This action will remove the record from MongoDB Atlas.",
+                "Are you sure you want to permanently delete '" + applicant.getName()
+                        + "'? This action will remove the record from MongoDB Atlas.",
                 "Delete Candidate",
                 true,
                 () -> deleteApplicantAsync(applicant),
-                () -> rootPane.getChildren().removeIf(node -> node instanceof ConfirmDialog)
-        );
+                () -> rootPane.getChildren().removeIf(node -> node instanceof ConfirmDialog));
         rootPane.getChildren().add(dialog);
     }
 
@@ -651,7 +692,7 @@ public class ApplicantsView implements BaseView {
         AppContext ctx = AppContext.getInstance();
         loadingOverlay.show("Deleting candidate from MongoDB Atlas...");
 
-        ctx.runAsync(() -> {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 ctx.getApplicantRepository().delete(applicant.getId());
                 Platform.runLater(() -> {
@@ -659,8 +700,7 @@ public class ApplicantsView implements BaseView {
                     ctx.showToast(Toast.info(
                             "Candidate Deleted",
                             "Removed '" + applicant.getName() + "' from MongoDB.",
-                            null
-                    ));
+                            null));
                     ctx.loadApplicantsAsync(this::updateRowCount, error -> ctx.showToast(Toast.error(
                             "Applicant Refresh Failed",
                             error.getMessage() == null ? "Deleted the applicant, but could not refresh the list."
@@ -673,7 +713,8 @@ public class ApplicantsView implements BaseView {
                     loadingOverlay.hide();
                     ctx.showToast(Toast.error("Delete Failed",
                             e.getMessage() == null ? "Could not delete applicant."
-                                    : com.ruleweaver.config.MongoConfig.sanitize(e.getMessage()), null));
+                                    : com.ruleweaver.config.MongoConfig.sanitize(e.getMessage()),
+                            null));
                 });
             }
         });
