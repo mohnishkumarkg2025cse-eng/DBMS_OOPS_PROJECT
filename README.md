@@ -47,15 +47,81 @@ In traditional software systems, business rules (such as loan approvals, grant e
 * **Evaluation History:** Stores decision records for reviewing previous eligibility assessments and supporting traceability.
 
 ---
+## Bidirectional Database Synchronization
+
+RuleWeaver X supports synchronization of applicant data between MongoDB Atlas and MySQL.
+
+### Synchronization flow
+
+- **MongoDB → MySQL:** MongoDB Change Streams detect database changes and propagate applicant updates to MySQL.
+- **MySQL → MongoDB:** MySQL outbox events are processed by a background worker, which applies corresponding changes to MongoDB.
+- **Loop prevention:** Synchronization-origin metadata helps prevent changes written by one synchronization direction from being repeatedly propagated back.
+- **Deletion handling:** Deletions are represented using soft-delete metadata so that deleted applicants can be excluded from normal application listings.
+
+### Configuration
+
+Configure the MongoDB connection using the project's supported configuration mechanism. Configure MySQL credentials through environment variables:
+
+```powershell
+$env:MYSQL_USER = "your_mysql_username"
+$env:MYSQL_PASSWORD = "your_mysql_password"
+```
+
+Start the application with:
+
+```powershell
+mvn javafx:run
+```
+
+Set the credentials in the same PowerShell session used to launch the application. Do not commit database passwords, connection secrets, or local configuration files.
+
+### Verification
+
+Run the automated test suite with:
+
+```powershell
+mvn clean test
+```
+
+Verify database synchronization separately by creating, updating, and deleting a test applicant, then checking the corresponding records in both databases.
+
+### Current limitations
+
+Synchronization reliability improvements, including more robust retry and recovery handling and protection against concurrent worker execution, remain planned work.
+
 
 ## 🏗️ System Architecture
 
-The project strictly follows standard Maven directory layout and Java package hierarchy:
+### Project Structure
 
-com.ruleweaver
-├── config/        # MongoDB client instantiation and configuration settings
-├── repository/    # Data Access Objects (DAO) handling CRUD operations on MongoDB
-├── model/         # Core business domain entities (Applicant, Policy, Condition, etc.)
-├── service/       # Business logic operations, rule processing, and domain services
-└── Main.java      # Application bootstrap & smoke-testing entry point
+The project follows the standard Maven directory layout and organizes Java classes into packages based on their responsibilities.
+
+```text
+src/
+└── main/
+    ├── java/
+    │   └── com/
+    │       └── ruleweaver/
+    │           ├── config/       # MongoDB and MySQL configuration
+    │           ├── model/        # Domain entities (Applicant, Policy, etc.)
+    │           ├── repository/   # Data access and persistence operations
+    │           ├── service/      # Business logic and domain services
+    │           ├── sync/         # Bidirectional MongoDB–MySQL synchronization
+    │           ├── engine/       # Rule evaluation and decision logic
+    │           ├── ui/           # JavaFX interface and application context
+    │           └── Main.java     # Application entry point (if located here)
+    └── test/
+        └── java/                 # Automated tests
+```
+
+**Architecture overview**
+
+- **Config:** Database connections and application configuration.
+- **Model:** Core domain objects such as applicants, policies, and evaluation results.
+- **Repository:** Database access and persistence operations.
+- **Service:** Business operations and domain-level workflows.
+- **Sync:** Background workers and change listeners that synchronize applicant data between MongoDB Atlas and MySQL.
+- **Engine:** Policy evaluation and decision-making logic.
+- **UI:** JavaFX views, navigation, and application interaction.
+- **Tests:** Automated checks for core logic and application behavior.
 
